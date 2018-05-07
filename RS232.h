@@ -19,8 +19,8 @@ typedef struct{
 }Param;
 
 void rs232_init(void);
-queue rs232_read(Param p, int c);
+void rs232_read(Param p, int c);
 bool check_CRC(int c1, int c2);
-void store_data(Param p, queue q, int i);
+Param store_data(Param p, queue q, int i);
 
 #endif
