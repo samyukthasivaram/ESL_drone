@@ -5,7 +5,6 @@
 static volatile bool read = false;
 queue rx_queue;
 queue rx_buffer;
-Param p; queue q;
 
 void rs232_init(void)
 {
@@ -19,7 +18,7 @@ void rs232_init(void)
   ---------------------------------------------------------
  */
 
-queue rs232_read(Param p, int c)
+void rs232_read(Param p, int c)
 {
 	static int state = 0;
 	int i = 0;
@@ -94,7 +93,7 @@ queue rs232_read(Param p, int c)
 
 bool check_CRC(int c1, int c2)
 
-void store_data(Param p, queue q, int i)
+Param store_data(Param p, queue q, int i)
 {
 	p.Mode[i] = q.Data[0];
 	p.Lift[i] = 0xF0 & q.Data[1] + 0x0F & q.Data[2];
@@ -102,5 +101,6 @@ void store_data(Param p, queue q, int i)
 	p.Pitch[i] = 0xF0 & q.Data[5] + 0x0F & q.Data[6];
 	p.Yaw[i] = 0xF0 & q.Data[7] + 0x0F & q.Data[8];
 	p.Keyboard[i] = q.Data[9];
+	return p;
 }
 
