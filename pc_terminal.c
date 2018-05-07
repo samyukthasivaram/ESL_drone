@@ -234,7 +234,7 @@ int main(int argc, char **argv)
 	unsigned char axes = 2;
 	unsigned char buttons = 2;
 	int version = 0x000800;
-	int tx_buffer[13];
+	int tx_buffer[14];
 	char name[NAME_LENGTH] = "Unknown";
 	
 	ioctl(fd, JSIOCGVERSION, &version);
@@ -398,10 +398,11 @@ int main(int argc, char **argv)
 			tx_buffer[8]= (uint8)yaw;
 			tx_buffer[9]= (uint8)yaw>>8;
 			tx_buffer[10]= keyboard;
-			tx_buffer[11]= crc;
-			tx_buffer[12]= stop;			
+			tx_buffer[11]= (uint8)crc;
+			tx_buffer[12]=(uint8)crc>>8;
+			tx_buffer[13]= stop;			
 	
-	for(int k=0; k<13; k++)
+	for(int k=0; k<14; k++)
 	{
 			rs232_putchar(tx_frame);
 	}
