@@ -34,6 +34,49 @@ int charsWaiting (int fd)
   }
   return count ;
 }
+//CRC calculation without LUT
+uint16_t calc_crc(int frame[])
+
+{
+    uint16_t crc,byte;
+    crc = 0;
+    
+    for (int i=1; i< DLEN+1; i++)
+    {
+            byte=frame[i];
+            crc ^=byte<<8;
+	    for(int k=8;k>0;k--)
+		{if(crc & 0x80)
+			crc^=POLY;
+		 crc=crc<<1;
+		}
+    
+    }
+    return crc;
+}
+//CRC calculation with LUT
+unsigned cal_crc(unsigned char *ptr, unsigned char len) 
+{
+ unsigned int crc;
+ unsigned char da;
+ unsigned int crc_ta[16]={ 
+ 0x0000,0x1021,0x2042,0x3063,0x4084,0x50a5,0x60c6,0x70e7,
+0x8108,0x9129,0xa14a,0xb16b,0xc18c,0xd1ad,0xe1ce,0xf1ef,
+ }
+ crc=0;
+ while(len--!=0) {
+ da=((uchar)(crc/256))/16; 
+ crc<<=4; 
+ crc^=crc_ta[da^(ptr/16)]; 
+
+ da=((uchar)(crc/256))/16; 
+ crc<<=4; 
+ crc^=crc_ta[da^(ptr&0x0f)]; 
+ ptr++;
+ }
+ return(crc);
+}
+
 
 /*------------------------------------------------------------
  * console I/O
@@ -398,6 +441,9 @@ int main(int argc, char **argv)
 			tx_buffer[8]= (uint8)yaw;
 			tx_buffer[9]= (uint8)yaw>>8;
 			tx_buffer[10]= keyboard;
+		
+			//crc=calc_crc(tx_buffer);      //calculate crc without LUT
+			crc=cal_crc(tc_buffer,10);      //with LUT
 			tx_buffer[11]= (uint8)crc;
 			tx_buffer[12]=(uint8)crc>>8;
 			tx_buffer[13]= stop;			
