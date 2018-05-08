@@ -13,13 +13,14 @@
 #include <sys/types.h>
 #include <stdlib.h>
 #include <fcntl.h>
+#include <stdint.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
 #include <termios.h>
 #include <sys/stat.h>
-#include <joystick.h>
+#include "joystick.h"
 
 #define NAME_LENGTH 128
 
@@ -35,7 +36,7 @@ int charsWaiting (int fd)
   return count ;
 }
 //CRC calculation without LUT
-uint16_t calc_crc(int frame[])
+/*uint16_t calc_crc(int frame[])
 
 {
     uint16_t crc,byte;
@@ -53,30 +54,27 @@ uint16_t calc_crc(int frame[])
     
     }
     return crc;
-}
+}*/
 //CRC calculation with LUT
-unsigned cal_crc(unsigned char *ptr, unsigned char len) 
-{
+unsigned cal_crc(unsigned int *ptr, unsigned int len) {
  unsigned int crc;
  unsigned char da;
  unsigned int crc_ta[16]={ 
  0x0000,0x1021,0x2042,0x3063,0x4084,0x50a5,0x60c6,0x70e7,
 0x8108,0x9129,0xa14a,0xb16b,0xc18c,0xd1ad,0xe1ce,0xf1ef,
- }
+ };
  crc=0;
  while(len--!=0) {
- da=((uchar)(crc/256))/16; 
+ da=((uint)(crc/256))/16; 
  crc<<=4; 
- crc^=crc_ta[da^(ptr/16)]; 
-
- da=((uchar)(crc/256))/16; 
+ crc^=crc_ta[da^(*ptr/16)]; 
+ da=((uint)(crc/256))/16; 
  crc<<=4; 
- crc^=crc_ta[da^(ptr&0x0f)]; 
+ crc^=crc_ta[da^(*ptr&0x0f)];
  ptr++;
  }
  return(crc);
 }
-
 
 /*------------------------------------------------------------
  * console I/O
@@ -263,7 +261,7 @@ int main(int argc, char **argv)
 	 */
 	for (;;)
 	{
-	sint16_t roll=0, pitch=0, yaw=0;
+	int16_t roll=0, pitch=0, yaw=0,lift=0;
 	int abort;
 	int flag_mode = 0;
 	int mode = 0;
@@ -276,13 +274,13 @@ int main(int argc, char **argv)
 	int	axis[6];
 	int	button[12];
 	int tx_buffer[13];
-	uitn16_t crc=0x00;
+	uint16_t crc=0x00;
 	struct js_event js;
 	
 	// input from joystick 
-
+#define JS_DEV	"/dev/input/js0"
 	if ((fd = open(JS_DEV, O_RDONLY)) < 0) {
-		perror("jouystick error");
+		perror("joystick error");
 		exit(1);
 	}
 
@@ -318,7 +316,7 @@ int main(int argc, char **argv)
 			}	
 		else 
 		{
-		pitch = axis[0]
+		pitch = axis[0];
 		roll = axis[1];
 		yaw = axis[2];
 		lift = axis[3];
@@ -432,19 +430,19 @@ int main(int argc, char **argv)
 			
 			tx_buffer[0]= start;
 			tx_buffer[1]= mode;
-			tx_buffer[2]= (sint8_t)lift;
-			tx_buffer[3]= (sint8_t)(lift>>8);
-			tx_buffer[4]= (sint8_t)roll;
-			tx_buffer[5]= (sint8_t)(roll>>8);
-			tx_buffer[6]= (sint8_t)pitch;
-			tx_buffer[7]= (sint8_t)(pitch>>8);
-			tx_buffer[8]= (sint8_t)yaw;
-			tx_buffer[9]= (sint8_t)(yaw>>8);
+			tx_buffer[2]= (int8_t)lift;
+			tx_buffer[3]= (int8_t)(lift>>8);
+			tx_buffer[4]= (int8_t)roll;
+			tx_buffer[5]= (int8_t)(roll>>8);
+			tx_buffer[6]= (int8_t)pitch;
+			tx_buffer[7]= (int8_t)(pitch>>8);
+			tx_buffer[8]= (int8_t)yaw;
+			tx_buffer[9]= (int8_t)(yaw>>8);
 			tx_buffer[10]= keyboard;
 			
 			//update crc
-			crc=calc_crc(tx_buffer);      //calculate crc without LUT
-			//crc=cal_crc(tx_buffer,10);      //with LUT
+			//crc=calc_crc(tx_buffer);      //calculate crc without LUT
+			crc=cal_crc(tx_buffer,10);      //with LUT
 			
 			
 			tx_buffer[11]= (uint8_t)crc;
@@ -452,7 +450,8 @@ int main(int argc, char **argv)
 	
 	for(int k=0; k<13; k++)
 	{
-			rs232_putchar(tx_frame);
+			rs232_putchar(tx_frame[k]);
+			printf("%d",tx_frame[k]);
 	}
 	
 		if ((c = rs232_getchar_nb()) != -1)
@@ -468,4 +467,3 @@ int main(int argc, char **argv)
 
 	return 0;
 }
-
