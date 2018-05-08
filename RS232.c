@@ -64,6 +64,7 @@ bool rs232_read(int p[DataSize])
 					read = false;
 					store_data(p[], rx_buffer);
 					state = 0;
+					usleep(10000);
 				}
 				else state = 0;
 				break;
