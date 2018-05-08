@@ -16,7 +16,7 @@ void rs232_init(void)
   ---------------------------------------------------------
  */
 
-bool rs232_read(int *p)
+bool rs232_read(int p[DataSize])
 {
 	static int state = 0;
 	int i = 0;
