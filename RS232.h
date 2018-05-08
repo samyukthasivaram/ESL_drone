@@ -9,7 +9,7 @@
 #define DataSize	10
 
 void rs232_init(void);
-bool rs232_read(int *p);
+bool rs232_read(int p[DataSize]);
 bool check_CRC(int c1, int c2);
 int store_data(int p[DataSize], queue q);
 
