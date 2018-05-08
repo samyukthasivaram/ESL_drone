@@ -268,7 +268,6 @@ int main(int argc, char **argv)
 	int flag_mode = 0;
 	int mode = 0;
 	int start=0xFF; 
-	int stop=0xFF;
 	int c=0;
 	struct termios options;
 	int count=0;
@@ -276,7 +275,7 @@ int main(int argc, char **argv)
 	int keyboard=0xF0;
 	int	axis[6];
 	int	button[12];
-	int tx_buffer[14];
+	int tx_buffer[13];
 	uitn16_t crc=0x00;
 	struct js_event js;
 	
@@ -450,9 +449,8 @@ int main(int argc, char **argv)
 			
 			tx_buffer[11]= (uint8_t)crc;
 			tx_buffer[12]=(uint8_t)(crc>>8);
-			tx_buffer[13]= stop;		
 	
-	for(int k=0; k<14; k++)
+	for(int k=0; k<13; k++)
 	{
 			rs232_putchar(tx_frame);
 	}
