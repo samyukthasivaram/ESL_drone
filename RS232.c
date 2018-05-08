@@ -15,6 +15,35 @@ void rs232_init(void)
  *Data format: | StartByte | Data | CRC1 | CRC2 | 14 bytes
   ---------------------------------------------------------
  */
+unsigned cal_crc(unsigned int *ptr, unsigned int len) {
+ unsigned int crc;
+ unsigned char da;
+ unsigned int crc_ta[16]={ 
+ 0x0000,0x1021,0x2042,0x3063,0x4084,0x50a5,0x60c6,0x70e7,
+0x8108,0x9129,0xa14a,0xb16b,0xc18c,0xd1ad,0xe1ce,0xf1ef,
+ }
+ crc=0;
+ while(len--!=0) {
+ da=((uint)(crc/256))/16; 
+ crc<<=4; 
+ crc^=crc_ta[da^(*ptr/16)]; 
+ da=((uchar)(crc/256))/16; 
+ crc<<=4; 
+ crc^=crc_ta[da^(*ptr&0x0f)];
+ ptr++;
+ }
+ return(crc);
+}
+
+bool check_crc(int c1, int c2, queue q)
+{
+   w= cal_crc(q,10);
+   new_c = (c2>>8)|c1;
+  if (~w&new_c)
+     return false;
+  else
+    return true;
+}
 
 bool rs232_read(int p[DataSize])
 {
@@ -111,7 +140,6 @@ bool rs232_read(int p[DataSize])
 	}
 }
 
-bool check_CRC(int c1, int c2, queue q)
 
 int store_data(int p[DataSize], queue q)
 {
