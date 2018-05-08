@@ -59,7 +59,7 @@ bool rs232_read(int p[DataSize])
 				
 			case 3:
 				check2 = data;
-				if(check_CRC(check1, check2))
+				if(check_CRC(check1, check2, rx_buffer))
 				{
 					read = false;
 					store_data(p[], rx_buffer);
@@ -73,7 +73,7 @@ bool rs232_read(int p[DataSize])
 	}
 }
 
-bool check_CRC(int c1, int c2)
+bool check_CRC(int c1, int c2, queue q)
 
 int store_data(int p[DataSize], queue q)
 {
