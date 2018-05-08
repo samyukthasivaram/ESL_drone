@@ -122,7 +122,7 @@ bool rs232_read(int p[DataSize])
 								rx_buffer.count = i + 1;
 								count = DataLen + 1 - i;
 								init_queue(rx_wrong);
-								for(j=0; j<count; j++)
+								for(j=0; j<count-1; j++)
 									rx_wrong.Data[j] = rx_buffer.Data[i+1+j];
 								rx_wrong.Data[count] = check1;
 								rx_wrong.Data[count+1] = check2;
