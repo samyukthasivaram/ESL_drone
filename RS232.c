@@ -24,6 +24,15 @@ unsigned cal_crc(unsigned int *ptr, unsigned int len) {
  return(crc);
 }
 
+bool checl_crc(int c1, int c2, queue q, int length)
+{
+   w= cal_crc(q,length);
+   new_c = (c2>>8)|c1;
+  if (~w&new_c)
+     return false;
+  else
+    return true;
+}
 
 void rs232_init(void)
 {
@@ -95,7 +104,7 @@ bool rs232_read(int p[DataSize])
 	}
 }
 
-bool check_CRC(int c1, int c2, queue q)
+
 
 int store_data(int p[DataSize], queue q)
 {
