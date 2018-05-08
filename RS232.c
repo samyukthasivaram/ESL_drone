@@ -16,7 +16,7 @@ void rs232_init(void)
   ---------------------------------------------------------
  */
 
-bool rs232_read(int p[DataSize])
+bool rs232_read(int p[DataLen])
 {
 	static int state = 0;
 	int i = 0;
@@ -91,7 +91,7 @@ bool rs232_read(int p[DataSize])
 
 bool check_CRC(int c1, int c2)
 
-int store_data(int p[DataSize], queue q)
+int store_data(int p[DataLen], queue q)
 {
 	for(i=0; i<DataSize; i++)
 		p[i] = q.Data[i];
