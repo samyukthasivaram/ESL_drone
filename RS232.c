@@ -4,36 +4,6 @@
 
 static volatile bool read = false;
 
-unsigned cal_crc(unsigned int *ptr, unsigned int len) {
- unsigned int crc;
- unsigned char da;
- unsigned int crc_ta[16]={ 
- 0x0000,0x1021,0x2042,0x3063,0x4084,0x50a5,0x60c6,0x70e7,
-0x8108,0x9129,0xa14a,0xb16b,0xc18c,0xd1ad,0xe1ce,0xf1ef,
- }
- crc=0;
- while(len--!=0) {
- da=((uint)(crc/256))/16; 
- crc<<=4; 
- crc^=crc_ta[da^(*ptr/16)]; 
- da=((uchar)(crc/256))/16; 
- crc<<=4; 
- crc^=crc_ta[da^(*ptr&0x0f)];
- ptr++;
- }
- return(crc);
-}
-
-bool check_CRC(int c1, int c2, queue q)
-{
-   w= cal_crc(q,10);
-   new_c = (c2>>8)|c1;
-  if (~w&new_c)
-     return false;
-  else
-    return true;
-}
-
 void rs232_init(void)
 {
 	uart_init();
@@ -42,7 +12,7 @@ void rs232_init(void)
 }
 
 /*---------------------------------------------------------
- *Data format: | SYNC(header) | StartByte | Data | CRC1 | CRC2 | StopByte | 
+ *Data format: | StartByte | Data | CRC1 | CRC2 | 14 bytes
   ---------------------------------------------------------
  */
 
@@ -50,8 +20,11 @@ bool rs232_read(int p[DataSize])
 {
 	static int state = 0;
 	int data = 0;
+	int i = j = 0;
 	int check1 = check2 = 0;	//store CRC
 	queue rx_buffer;
+	queue rx_wrong;	//store data when CRC result goes wrong
+	int count;
 
 	init_queue(rx_buffer);
 	*p = [0];
@@ -86,7 +59,7 @@ bool rs232_read(int p[DataSize])
 					state = 1;
 				}
 				break;
-				
+
 			case 2:
 				check2 = data;
 				if(check_CRC(check1, check2, rx_buffer))
@@ -96,7 +69,41 @@ bool rs232_read(int p[DataSize])
 					state = 0;
 					usleep(10000);
 				}
-				else state = 0;
+				else
+				{
+					init_queue(rx_buffer);
+
+					if(check1 == StartByte)
+					{
+						rx_buffer.Data[0] = check2;
+						rx_buffer.count = 1;
+						state = 1;
+					}
+					else if(check2 == StartByte)
+					{
+						rx_buffer.count = 0;
+						state = 1;
+					}
+					else
+					{
+						for(i=0; i<DataLen; i++)
+						{
+							if(rx_buffer.Data[i] == StartByte)
+							{
+								rx_buffer.count = i + 1;
+								count = DataLen + 1 - i;
+								init_queue(rx_wrong);
+								for(j=0; j<count; j++)
+									rx_wrong.Data[j] = rx_buffer.Data[i+1+j];
+								rx_wrong.Data[count] = check1;
+								rx_wrong.Data[count+1] = check2;
+								state = 1;
+							}
+							else	state = 0;
+						}
+					}
+				}
+
 				break;
 			
 			default: break;
@@ -104,7 +111,7 @@ bool rs232_read(int p[DataSize])
 	}
 }
 
-
+bool check_CRC(int c1, int c2, queue q)
 
 int store_data(int p[DataSize], queue q)
 {
