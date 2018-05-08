@@ -2,9 +2,6 @@
 #define _RS232_H_
 
 #define StartByte 0xFF
-#define CRC1
-#define CRC2
-#define StopByte  0xFF
 #define DataLen 10
 
 void rs232_init(void);
