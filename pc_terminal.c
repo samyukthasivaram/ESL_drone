@@ -433,23 +433,23 @@ int main(int argc, char **argv)
 			
 			tx_buffer[0]= start;
 			tx_buffer[1]= mode;
-			tx_buffer[2]= (uint8)lift;
-			tx_buffer[3]= (uint8)(lift>>8);
-			tx_buffer[4]= (uint8)roll;
-			tx_buffer[5]= (uint8)(roll>>8);
-			tx_buffer[6]= (uint8)pitch;
-			tx_buffer[7]= (uint8)(pitch>>8);
-			tx_buffer[8]= (uint8)yaw;
-			tx_buffer[9]= (uint8)(yaw>>8);
+			tx_buffer[2]= (sint8_t)lift;
+			tx_buffer[3]= (sint8_t)(lift>>8);
+			tx_buffer[4]= (sint8_t)roll;
+			tx_buffer[5]= (sint8_t)(roll>>8);
+			tx_buffer[6]= (sint8_t)pitch;
+			tx_buffer[7]= (sint8_t)(pitch>>8);
+			tx_buffer[8]= (sint8_t)yaw;
+			tx_buffer[9]= (sint8_t)(yaw>>8);
 			tx_buffer[10]= keyboard;
 			
 			//update crc
-			//crc=calc_crc(tx_buffer);      //calculate crc without LUT
-			crc=cal_crc(tx_buffer,10);      //with LUT
+			crc=calc_crc(tx_buffer);      //calculate crc without LUT
+			//crc=cal_crc(tx_buffer,10);      //with LUT
 			
 			
-			tx_buffer[11]= (uint8)crc;
-			tx_buffer[12]=(uint8)(crc>>8);
+			tx_buffer[11]= (uint8_t)crc;
+			tx_buffer[12]=(uint8_t)(crc>>8);
 			tx_buffer[13]= stop;		
 	
 	for(int k=0; k<14; k++)
