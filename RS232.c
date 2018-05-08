@@ -43,7 +43,12 @@ bool rs232_read(int p[DataSize])
 				break;
 				
 			case 1:
-				if(rx_buffer.count >=DataLen)	state = 2;
+				if(rx_buffer.count >=DataLen)
+				{
+					check1 = data;
+					rx_buffer.count = 0;
+					state = 2;
+				}
 				else
 				{
 					rx_buffer.Data[rx_buffer.count] = data;
@@ -51,13 +56,8 @@ bool rs232_read(int p[DataSize])
 					state = 1;
 				}
 				break;
-
-			case 2:
-				check1 = data;
-				state = 3;
-				break;
 				
-			case 3:
+			case 2:
 				check2 = data;
 				if(check_CRC(check1, check2, rx_buffer))
 				{
