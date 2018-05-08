@@ -24,9 +24,9 @@ unsigned cal_crc(unsigned int *ptr, unsigned int len) {
  return(crc);
 }
 
-bool checl_crc(int c1, int c2, queue q, int length)
+bool check_CRC(int c1, int c2, queue q)
 {
-   w= cal_crc(q,length);
+   w= cal_crc(q,10);
    new_c = (c2>>8)|c1;
   if (~w&new_c)
      return false;
