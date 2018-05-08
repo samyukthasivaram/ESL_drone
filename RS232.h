@@ -6,7 +6,7 @@
 
 void rs232_init(void);
 bool rs232_read(int p[DataLen]);
-bool check_CRC(int c1, int c2);
+bool check_CRC(int c1, int c2, queue q);
 int store_data(int p[DataLen], queue q);
 
 #endif
