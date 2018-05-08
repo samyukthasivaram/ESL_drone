@@ -3,8 +3,6 @@
 #include <RS232.h>
 
 static volatile bool read = false;
-queue rx_queue;
-queue rx_buffer;
 
 void rs232_init(void)
 {
@@ -18,17 +16,18 @@ void rs232_init(void)
   ---------------------------------------------------------
  */
 
-void rs232_read(Param p, int c)
+bool rs232_read(int *p)
 {
 	static int state = 0;
 	int i = 0;
 	int data = 0;
-	int check1 = check2 = 0;	//store CRC1
+	int check1 = check2 = 0;	//store CRC
+	queue rx_queue;
+	queue rx_buffer;
 	
 	init_queue(rx_queue);
 	init_queue(rx_buffer);
-	init_queue(rx_param);
-	p = {0};
+	p = [0];
 	
 	for(i=0; i<QUEUE_SIZE; i++)
 	{
@@ -55,7 +54,7 @@ void rs232_read(Param p, int c)
 					else
 					{
 						state = 2;
-						check1 = data;
+						check = data;
 					}
 				}
 				else
@@ -64,7 +63,7 @@ void rs232_read(Param p, int c)
 					rx_buffer.count++;
 				}
 				break;
-				
+
 			case 2:
 				if(data == CRC2)
 				{
@@ -77,11 +76,10 @@ void rs232_read(Param p, int c)
 			case 3:
 				if(data == StopByte)
 				{
-					if(p.count>=size)	p = {0};
-					store_data(p, rx_buffer, p.count);
-					p.count++;
+					store_data(p, rx_buffer);
 					read = false;
 					state = 0;
+					return 0;
 				}
 				else	state = 0;
 				break;
@@ -93,14 +91,10 @@ void rs232_read(Param p, int c)
 
 bool check_CRC(int c1, int c2)
 
-Param store_data(Param p, queue q, int i)
+Param store_data(int p[DataSize], queue q)
 {
-	p.Mode[i] = q.Data[0];
-	p.Lift[i] = 0xF0 & q.Data[1] + 0x0F & q.Data[2];
-	p.Roll[i] = 0xF0 & q.Data[3] + 0x0F & q.Data[4];
-	p.Pitch[i] = 0xF0 & q.Data[5] + 0x0F & q.Data[6];
-	p.Yaw[i] = 0xF0 & q.Data[7] + 0x0F & q.Data[8];
-	p.Keyboard[i] = q.Data[9];
+	for(i=0; i<DataSize; i++)
+		p[i] = q.Data[i];
 	return p;
 }
 
