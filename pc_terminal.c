@@ -263,69 +263,67 @@ int main(int argc, char **argv)
 	 */
 	for (;;)
 	{
-		sint16_t roll=0, pitch=0, yaw=0;
+	sint16_t roll=0, pitch=0, yaw=0;
 	int abort;
 	int flag_mode = 0;
 	int mode = 0;
-	int start=0xF0; 
-	int stop=0xF0;
+	int start=0xFF; 
+	int stop=0xFF;
 	int c=0;
 	struct termios options;
 	int count=0;
 	int fd;
 	int keyboard=0xF0;
-	unsigned char axes = 2;
-	unsigned char buttons = 2;
-	int version = 0x000800;
+	int	axis[6];
+	int	button[12];
 	int tx_buffer[14];
-	char name[NAME_LENGTH] = "Unknown";
 	uitn16_t crc=0x00;
-	
-	ioctl(fd, JSIOCGVERSION, &version);
-	ioctl(fd, JSIOCGAXES, &axes);
-	ioctl(fd, JSIOCGBUTTONS, &buttons);
-	ioctl(fd, JSIOCGNAME(NAME_LENGTH), name);
-
-	printf("Joystick (%s) has %d axes and %d buttons. Driver version is %d.%d.%d.\n",
-		name, axes, buttons, version >> 16, (version >> 8) & 0xff, version & 0xff);
-	printf("Testing ... (interrupt to exit)\n");
-	
 	struct js_event js;
+	
+	// input from joystick 
 
-		fcntl(fd, F_SETFL, O_NONBLOCK);
+	if ((fd = open(JS_DEV, O_RDONLY)) < 0) {
+		perror("jouystick error");
+		exit(1);
+	}
 
-			// printf("no events ..\n");
+	/* non-blocking mode
+	 */
+	fcntl(fd, F_SETFL, O_NONBLOCK);
+		
+			unsigned int	t, i;
+	
+			while (read(fd, &js, sizeof(struct js_event)) == 
+		       			sizeof(struct js_event))  {
 
+			/* register data
+			 */
+			// fprintf(stderr,".");
 			switch(js.type & ~JS_EVENT_INIT) {
-			case JS_EVENT_BUTTON:
-				//buttons_state ^= (1 << js_event.number);
-				abort = js.value;
-				if(abort==1)
-				{	
-				mode = 9;
-				flag_mode=1;
-				}
-			break;
-			case JS_EVENT_AXIS:
-				if(js.type%3==0)
-					roll = js.value;
-				else if(js.type%3==1)
-					pitch = js.value;
-				else if (js.type%3==2)
-					yaw = js.value;
-			break;
+				case JS_EVENT_BUTTON:
+					button[js.number] = js.value;
+					break;
+				case JS_EVENT_AXIS:
+					axis[js.number] = js.value;
+					break;
 			}
-			
-			while (read(fd, &js, sizeof(struct js_event)) == sizeof(struct js_event))  {
-				printf("Event: type %d, time %d, number %d, value %d\n",
-					js.type, js.time, js.number, js.value);
-			}
-			
-
-			if (errno != EAGAIN) {
-				perror("\njstest: error reading");
-				exit (1);
-			}
+		}
+		if (errno != EAGAIN) {
+			perror("\njs: error reading (EAGAIN)");
+			exit (1);
+		}		
+	
+		if(button[0]==1)
+			{mode= 0x09;
+			flag_mode = 1;
+			}	
+		else 
+		{
+		pitch = axis[0]
+		roll = axis[1];
+		yaw = axis[2];
+		lift = axis[3];
+		}
 			
 		//keyboard press 
 		if(flag_mode!=1) // does not take input from the keyboard if aborted in the joystick
@@ -430,13 +428,7 @@ int main(int argc, char **argv)
 		{
 			keyboard = 0xF0;
 		}	
-		
-		
-		//update crc
-			//crc=calc_crc(tx_buffer);      //calculate crc without LUT
-			crc=cal_crc(tc_buffer,10);      //with LUT
-		
-		
+			
 			// frame update
 			
 			tx_buffer[0]= start;
@@ -450,6 +442,12 @@ int main(int argc, char **argv)
 			tx_buffer[8]= (uint8)yaw;
 			tx_buffer[9]= (uint8)(yaw>>8);
 			tx_buffer[10]= keyboard;
+			
+			//update crc
+			//crc=calc_crc(tx_buffer);      //calculate crc without LUT
+			crc=cal_crc(tx_buffer,10);      //with LUT
+			
+			
 			tx_buffer[11]= (uint8)crc;
 			tx_buffer[12]=(uint8)(crc>>8);
 			tx_buffer[13]= stop;		
