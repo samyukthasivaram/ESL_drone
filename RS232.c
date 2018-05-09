@@ -1,6 +1,9 @@
 #include <in4073.h>
 #include "pc_terminal.c"
 #include <RS232.h>
+#include <fcntl.h>
+#include <time.h>
+#include "js.c"
 
 static volatile bool read = false;
 
@@ -146,5 +149,29 @@ int store_data(int p[DataSize], queue q)
 	for(i=0; i<DataSize; i++)
 		p[i] = q.Data[i];
 	return p;
+}
+
+void Data_logging(log l, int p[DataLen])
+{
+	if(fp == NULL)
+		return -1;
+	else
+	{
+		log.Mode = p[0];
+		log.Joystick[0] = p[1];
+		log.Joystick[1] = p[2];
+		log.Joystick[2] = p[3];
+		log.Joystick[3] = p[4];
+		log.Joystick[4] = p[5];
+		log.Joystick[5] = p[6];
+		log.Joystick[6] = p[7];
+		log.Joystick[7] = p[8];
+		log.Keyboard = p[9];
+		fprintf(fp, "%d      %d      ", mon_time_ms(), log.Mode);
+		for(i=0; i<DataLen; i++)
+			fprintf(fp, "%d ", log.Joystick[i]);
+		fprintf(fp, "%d      %d      %d      %d      %d\n", \
+			log.Keyboard, log.Actuator, log.Sensor, log.Sensor_processing_chain, log.controller);
+	}
 }
 
