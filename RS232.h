@@ -16,6 +16,15 @@ typedef struct{
 	int controller;
 }log;
 
+typedef struct {
+	uint8_t Data[QUEUE_SIZE];
+	uint16_t first,last;
+  	uint16_t count; 
+} queue;
+queue rx_buffer;
+queue rx_wrong;
+
+
 void rs232_init(void);
 bool rs232_read(int p[DataLen]);
 bool check_CRC(int c1, int c2, queue q);
