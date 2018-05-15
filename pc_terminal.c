@@ -13,13 +13,14 @@
 #include <sys/types.h>
 #include <stdlib.h>
 #include <fcntl.h>
+#include <stdint.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
 #include <termios.h>
 #include <sys/stat.h>
-#include <joystick.h>
+#include "joystick.h"
 
 #define NAME_LENGTH 128
 
@@ -35,7 +36,7 @@ int charsWaiting (int fd)
   return count ;
 }
 //CRC calculation without LUT
-uint16_t calc_crc(int frame[])
+/*uint16_t calc_crc(int frame[])
 
 {
     uint16_t crc,byte;
@@ -53,30 +54,27 @@ uint16_t calc_crc(int frame[])
     
     }
     return crc;
-}
+}*/
 //CRC calculation with LUT
-unsigned cal_crc(unsigned char *ptr, unsigned char len) 
-{
+unsigned cal_crc(unsigned int *ptr, unsigned int len) {
  unsigned int crc;
- unsigned char da;
+ unsigned int da;
  unsigned int crc_ta[16]={ 
  0x0000,0x1021,0x2042,0x3063,0x4084,0x50a5,0x60c6,0x70e7,
 0x8108,0x9129,0xa14a,0xb16b,0xc18c,0xd1ad,0xe1ce,0xf1ef,
- }
+ };
  crc=0;
  while(len--!=0) {
- da=((uchar)(crc/256))/16; 
+ da=((unsigned int)(crc/256))/16; 
  crc<<=4; 
- crc^=crc_ta[da^(ptr/16)]; 
-
- da=((uchar)(crc/256))/16; 
+ crc^=crc_ta[da^(*ptr/16)]; 
+ da=((unsigned int)(crc/256))/16; 
  crc<<=4; 
- crc^=crc_ta[da^(ptr&0x0f)]; 
+ crc^=crc_ta[da^(*ptr&0x0f)];
  ptr++;
  }
  return(crc);
 }
-
 
 /*------------------------------------------------------------
  * console I/O
@@ -145,7 +143,7 @@ int	term_getchar()
 #include <stdio.h>
 #include <assert.h>
 #include <time.h>
-
+#define JS_DEV	"/dev/input/js0"
 int serial_device = 0;
 int fd_RS232;
 
@@ -251,43 +249,44 @@ int main(int argc, char **argv)
 
 	term_initio();
 	rs232_open();
+        struct termios options;
 
 	term_puts("Type ^C to exit\n");
 
 	/* discard any incoming text
-	 */
+	 
 	while ((c = rs232_getchar_nb()) != -1)
 		fputc(c,stderr);
 
 	/* send & receive
 	 */
-	for (;;)
+	while(1)
 	{
-	sint16_t roll=0, pitch=0, yaw=0;
+
+	int16_t roll=0, pitch=0, yaw=0,lift=0;
 	int abort;
 	int flag_mode = 0;
 	int mode = 0;
 	int start=0xFF; 
 	int c=0;
-	struct termios options;
+	//struct termios options;
 	int count=0;
 	int fd;
 	int keyboard=0xF0;
 	int	axis[6];
 	int	button[12];
-	int tx_buffer[13];
-	uitn16_t crc=0x00;
+	int tx_buffer[14];
+	uint16_t crc=0x00;
 	struct js_event js;
 	
 	// input from joystick 
 
 	if ((fd = open(JS_DEV, O_RDONLY)) < 0) {
-		perror("jouystick error");
+		perror("jstest");
 		exit(1);
 	}
-
-	/* non-blocking mode
-	 */
+	//non-blocking mode
+	 
 	fcntl(fd, F_SETFL, O_NONBLOCK);
 		
 			unsigned int	t, i;
@@ -295,8 +294,8 @@ int main(int argc, char **argv)
 			while (read(fd, &js, sizeof(struct js_event)) == 
 		       			sizeof(struct js_event))  {
 
-			/* register data
-			 */
+			//register data
+			
 			// fprintf(stderr,".");
 			switch(js.type & ~JS_EVENT_INIT) {
 				case JS_EVENT_BUTTON:
@@ -313,20 +312,24 @@ int main(int argc, char **argv)
 		}		
 	
 		if(button[0]==1)
-			{mode= 0x09;
-			flag_mode = 1;
-			}	
+			 
+			break;
+				
 		else 
 		{
-		pitch = axis[0]
+		pitch = axis[0];
 		roll = axis[1];
 		yaw = axis[2];
 		lift = axis[3];
 		}
-			
+		
+/*
+		pitch = 32000;
+		roll = 32000;
+		yaw = 32000;
+		lift = 32000;*/
 		//keyboard press 
-		if(flag_mode!=1) // does not take input from the keyboard if aborted in the joystick
-		{		
+				
 			tcgetattr (fileno (stdin), &options) ;
 			cfmakeraw (&options) ;	// Note - also affects output
 			tcsetattr (fileno (stdin), TCSANOW, &options) ;
@@ -422,41 +425,39 @@ int main(int argc, char **argv)
 				default:
 					keyboard = 0xF0;
 			}								
-		}
-		else
-		{
-			keyboard = 0xF0;
-		}	
+			
 			
 			// frame update
 			
 			tx_buffer[0]= start;
 			tx_buffer[1]= mode;
-			tx_buffer[2]= (sint8_t)lift;
-			tx_buffer[3]= (sint8_t)(lift>>8);
-			tx_buffer[4]= (sint8_t)roll;
-			tx_buffer[5]= (sint8_t)(roll>>8);
-			tx_buffer[6]= (sint8_t)pitch;
-			tx_buffer[7]= (sint8_t)(pitch>>8);
-			tx_buffer[8]= (sint8_t)yaw;
-			tx_buffer[9]= (sint8_t)(yaw>>8);
+			tx_buffer[2]= (int8_t)lift;
+			tx_buffer[3]= (int8_t)(lift>>8);
+			tx_buffer[4]= (int8_t)roll;
+			tx_buffer[5]= (int8_t)(roll>>8);
+			tx_buffer[6]= (int8_t)pitch;
+			tx_buffer[7]= (int8_t)(pitch>>8);
+			tx_buffer[8]= (int8_t)yaw;
+			tx_buffer[9]= (int8_t)(yaw>>8);
 			tx_buffer[10]= keyboard;
 			
 			//update crc
-			crc=calc_crc(tx_buffer);      //calculate crc without LUT
+			//crc=calc_crc(tx_buffer);      //calculate crc without LUT
 			//crc=cal_crc(tx_buffer,10);      //with LUT
-			
+			crc=0xffd2;
 			
 			tx_buffer[11]= (uint8_t)crc;
 			tx_buffer[12]=(uint8_t)(crc>>8);
 	
 	for(int k=0; k<13; k++)
 	{
-			rs232_putchar(tx_frame);
+			rs232_putchar(tx_buffer[k]);
+			printf("%d",tx_buffer[k]);
+			
 	}
 	
-		if ((c = rs232_getchar_nb()) != -1)
-			term_putchar(c);
+		//if ((c = rs232_getchar_nb()) != -1)
+		//	term_putchar(c);
 	
 	usleep(10000);
 		
@@ -468,4 +469,3 @@ int main(int argc, char **argv)
 
 	return 0;
 }
-
