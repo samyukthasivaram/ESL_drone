@@ -258,8 +258,17 @@ int main(int argc, char **argv)
 	while ((c = rs232_getchar_nb()) != -1)
 		fputc(c,stderr);
 
+
+
+	
+
 	/* send & receive
 	 */
+int fd;
+if ((fd = open(JS_DEV, O_RDONLY)) < 0) {
+		perror("jstest");
+		exit(1);
+	}
 	while(1)
 	{
 
@@ -271,7 +280,6 @@ int main(int argc, char **argv)
 	int c=0;
 	//struct termios options;
 	int count=0;
-	int fd;
 	int keyboard=0xF0;
 	int	axis[6];
 	int	button[12];
@@ -280,11 +288,6 @@ int main(int argc, char **argv)
 	struct js_event js;
 	
 	// input from joystick 
-
-	if ((fd = open(JS_DEV, O_RDONLY)) < 0) {
-		perror("jstest");
-		exit(1);
-	}
 	//non-blocking mode
 	 
 	fcntl(fd, F_SETFL, O_NONBLOCK);
