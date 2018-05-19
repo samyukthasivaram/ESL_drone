@@ -103,6 +103,9 @@ int main(void)
 			get_dmp_data();
 			run_filters_and_control();
 		}
+		
+		
+		
 	}	
 
 	printf("\n\t Goodbye \n\n");
