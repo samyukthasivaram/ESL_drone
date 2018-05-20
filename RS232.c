@@ -12,7 +12,7 @@
 #include <string.h>
 #include <sys/stat.h>
 
-#define DataSize 14
+#define DataSize 10
 #define POLY 0x8005
 
 
@@ -90,11 +90,9 @@ void rs232_read()
 	int check1 = 0,check2 = 0;	//store CRC
 	queue *rx_buffer;
 	queue *rx_wrong;	//store data when CRC result goes wrong <TO DO> 
-	int count;
+	int count=0;
 	int p[DataSize];
 	
-	while(1)
-	{
 		if(rx_queue.count>0)
 	{		data = dequeue(&rx_queue); 
 		switch(state)
@@ -110,8 +108,20 @@ void rs232_read()
 				break;
 				
 			case 1:
-				check1=data;
-				state=2;
+				if(count >=DataSize)
+				{
+					check1 = data;
+					rx_buffer->count = 0;
+					state = 2;
+				}
+				else
+				{
+					frame[count] = data;
+					count++;
+					state = 1;
+				}
+				break;
+			
 
 			case 2:
 				check2 = data;
@@ -119,8 +129,8 @@ void rs232_read()
 				{
 					read1 = false;
 					state = 0;
-					frame[size++]=data;
-					for(int ii=0;ii<DataSize;ii++) { printf("0x%02X ", p[ii]);}
+					store_data(frame);
+					for(int ii=0;ii<DataSize;ii++) { printf("0x%02X ", frame[ii]);}
 					//usleep(10000);
 				}
 				else    //if CRC is wrong check for start byte to start over
@@ -163,8 +173,38 @@ void rs232_read()
 			default: break;
 		}
 	}
-}}
+}
 
+
+void store_data(int p[DataSize])
+{	int16_t temp_1, temp_2, temp_3;
+
+
+	mode= p[0];
+	
+	temp_1 = p[1];
+	temp_2 = p[2];	
+	temp_3= temp_1<<8;
+	lift = temp_3+temp_2;
+	
+	temp_1 = p[3];
+	temp_2 = p[4];	
+	temp_3= temp_1<<8;
+	roll = temp_3+temp_2;
+	
+	temp_1 = p[5];
+	temp_2 = p[6];	
+	temp_3= temp_1<<8;
+	pitch = temp_3+temp_2;
+	
+	temp_1 = p[7];
+	temp_2 = p[8];	
+	temp_3= temp_1<<8;
+	yaw = temp_3+temp_2;
+	
+	keyboard = p[9];
+	
+}
 
 /*
 void Data_logging(log l, int p[DataLen])

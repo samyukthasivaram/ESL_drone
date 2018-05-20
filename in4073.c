@@ -80,8 +80,12 @@ int main(void)
 
 	while (!demo_done)
 	{
-		if (rx_queue.count) process_key( dequeue(&rx_queue) );
-
+		
+		rs232_read();
+		manual_mode_withoutsqrt()
+		
+		//if (rx_queue.count) process_key( dequeue(&rx_queue) );
+/*
 		if (check_timer_flag()) 
 		{
 			if (counter++%20 == 0) nrf_gpio_pin_toggle(BLUE);
@@ -104,9 +108,10 @@ int main(void)
 			run_filters_and_control();
 		}
 	}	
-
+*/
 	printf("\n\t Goodbye \n\n");
 	nrf_delay_ms(100);
 
 	NVIC_SystemReset();
+}
 }
