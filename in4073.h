@@ -28,7 +28,9 @@
 #define INT_PIN		5
 
 bool demo_done;
-
+void manual_mode_withoutsqrt();
+int16_t roll,pitch,yaw,lift;
+int8_t keyboard,mode;
 // Control
 int16_t motor[4],ae[4];
 void run_filters_and_control();

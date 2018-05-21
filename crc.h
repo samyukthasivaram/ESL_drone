@@ -1,1 +1,1 @@
-unsigned cal_crc(unsigned int *ptr, unsigned int len);
+int16_t calc_crc(int frame[]);

@@ -1,4 +1,6 @@
 //http://www.microchip.com/forums/m577584.aspx
+
+#include "in4073.h"
 int squareroot(int value)
 {
  unsigned Root = 0;
@@ -7,17 +9,17 @@ int squareroot(int value)
            {
              unsigned Trial = Root + Bit;
              Root >>= 1;
-             if ( Trial <= Value )
+             if ( Trial <= value )
                {
                  Root += Bit;
-                 Value -= Trial;
+                 value -= Trial;
                }
            }
          printf("%d",Root);		 
-		return root;
+		return Root;
 }
 
-void manual_mode_sqrt(int16_t roll, int16_t pitch, int16_t yaw, int16_t lift)
+void manual_mode_sqrt()
 {
 int w1_sqr = 0;
 int w2_sqr = 0;
@@ -44,7 +46,7 @@ ae4 = squareroot(w4_sqr);
 
 }
 
-void manual_mode_withoutsqrt(int16_t roll, int16_t pitch, int16_t yaw, int16_t lift)
+void manual_mode_withoutsqrt()
 {
 int ae1 = 0;
 int ae2 = 0;
