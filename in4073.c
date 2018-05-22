@@ -24,33 +24,43 @@ void process_key(uint8_t c)
 {
 	switch (c)
 	{
-		case 'q':
+		case 0://lift up
 			ae[0] += 10;
+			ae[1] += 10;
+			ae[2] += 10;
+			ae[3] += 10;
+			
 			break;
-		case 'a':
+		case 1://lift down
 			ae[0] -= 10;
-			if (ae[0] < 0) ae[0] = 0;
+			ae[1] -= 10;
+			ae[2] -= 10;
+			ae[3] -= 10;
+			
 			break;
-		case 'w':
+		case 2://roll up
 			ae[1] += 10;
 			break;
-		case 's':
+		case 3://roll down
 			ae[1] -= 10;
 			if (ae[1] < 0) ae[1] = 0;
 			break;
-		case 'e':
+		case 4://pitch down
 			ae[2] += 10;
 			break;
-		case 'd':
+		case 5://pitch up
 			ae[2] -= 10;
 			if (ae[2] < 0) ae[2] = 0;
 			break;
-		case 'r':
-			ae[3] += 10;
+		case 6:// yaw clockwise
+			ae[0] += 10;
+			ae[2] += 10;
 			break;
-		case 'f':
+		case 7://yaw ccw
+			ae[1]-=10;
 			ae[3] -= 10;
 			if (ae[3] < 0) ae[3] = 0;
+			if (ae[1] < 0) ae[1] = 0;
 			break;
 		case 27:
 			demo_done = true;
@@ -79,11 +89,29 @@ int main(void)
 	uint32_t counter = 0;
 	demo_done = false;
 
+
+
+	
+
+	while (!demo_done)
+	
+	{	
+		//printf(" |");
+		rs232_read();
+		if(mode==2)
+			manual_mode_sqrt();
+		if(keyboard!=0xF0)
+			process_key(keyboard);
+		if(mode == 9)
+			demo_done=1;
+		if(mode == 4)
+			yaw_control();
 		if (check_timer_flag()) 
 		{
 			if (counter++%20 == 0) nrf_gpio_pin_toggle(BLUE);
 
 			adc_request_sample();
+                  	
 			//read_baro(); 
 
 			/*printf("%10ld | ", get_time_us());
@@ -95,34 +123,6 @@ int main(void)
 
 			clear_timer_flag();
 		}
-
-	
-
-	while (!demo_done)
-	
-	{	
-		//printf(" |");
-		rs232_read();
-		//manual_mode_withoutsqrt();
-		
-		/*if (rx_queue.count) process_key( dequeue(&rx_queue) );
-
-		if (check_timer_flag()) 
-		{
-			if (counter++%20 == 0) nrf_gpio_pin_toggle(BLUE);
-
-			adc_request_sample();
-			read_baro();
-
-			printf("%10ld | ", get_time_us());
-			printf("%3d %3d %3d %3d | ",ae[0],ae[1],ae[2],ae[3]);
-			printf("%6d %6d %6d | ", phi, theta, psi);
-			printf("%6d %6d %6d | ", sp, sq, sr);
-			printf("%4d | %4ld | %6ld \n", bat_volt, temperature, pressure);
-
-			clear_timer_flag();
-		}*/
-
 		if (check_sensor_int_flag()) 
 		{
 			get_dmp_data();
