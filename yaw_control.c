@@ -25,7 +25,6 @@ int16_t yaw_control(int16_t roll, int16_t pitch, int16_t yaw, int16_t lift, int8
 	
 	//Does p has a range?
 	
-	sr = get_sensor_data();
 	error = yaw - sr;
 	yaw = p * error;
 	
