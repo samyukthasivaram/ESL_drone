@@ -20,8 +20,8 @@ int16_t yaw_control(int16_t roll, int16_t pitch, int16_t yaw, int16_t lift, int1
 	int16_t w3_sqr = 0;
 	int16_t w4_sqr = 0;
 	
-	if(keyboard == u)	p++;
-	else if(keyboard == j)	p--;
+	if(keyboard == 8)	p++;
+	else if(keyboard == 9)	p--;
 	
 	//Does p has a range?
 	
