@@ -13,15 +13,15 @@
 static int16_t p = 10;	//initial value to be decided
 static int16_t error = 0;
 
-int16_t yaw_control(int16_t roll, int16_t pitch, int16_t yaw, int16_t lift, int16_t keyboard)
+int16_t yaw_control(int16_t roll, int16_t pitch, int16_t yaw, int16_t lift, int8_t keyboard)
 {
 	int16_t w1_sqr = 0;
 	int16_t w2_sqr = 0;
 	int16_t w3_sqr = 0;
 	int16_t w4_sqr = 0;
 	
-	if(keyboard == 8)	p++;
-	else if(keyboard == 9)	p--;
+	if(keyboard == ‘8’)		p++;
+	else if(keyboard == ‘9’)	p--;
 	
 	//Does p has a range?
 	
