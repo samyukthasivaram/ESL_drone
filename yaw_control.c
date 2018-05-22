@@ -13,7 +13,7 @@
 static int16_t p = 10;	//initial value to be decided
 static int16_t error = 0;
 
-int16_t yaw_control(int16_t roll, int16_t pitch, int16_t yaw, int16_t lift, int8_t keyboard)
+void yaw_control(int16_t roll, int16_t pitch, int16_t yaw, int16_t lift, int8_t keyboard)
 {
 	int16_t w1_sqr = 0;
 	int16_t w2_sqr = 0;
@@ -28,14 +28,10 @@ int16_t yaw_control(int16_t roll, int16_t pitch, int16_t yaw, int16_t lift, int8
 	error = yaw - sr;
 	yaw = p * error;
 	
-	w1_sqr= -yaw - lift + pitch + pitch;
-	ae[0] = squareroot(w1_sqr);
-	w3_sqr= -yaw - lift - pitch - pitch;
-	ae[2] = squareroot(w3_sqr);
-	w2_sqr= yaw - lift - roll - roll;
-	ae[1] = squareroot(w2_sqr);
-	w4_sqr= yaw - lift + roll + roll;
-	ae[3] = squareroot(w4_sqr);
+	ae[0] = -yaw + lift + pitch + pitch;
+	ae[2] = -yaw + lift - pitch - pitch;
+	ae[1] = yaw + lift - roll - roll;
+	ae[3]= yaw + lift + roll + roll;
 
 	if (ae[0] < 0) ae[0] = 0; 
 	if (ae[0] > 500) ae[0] = 500;
@@ -45,8 +41,7 @@ int16_t yaw_control(int16_t roll, int16_t pitch, int16_t yaw, int16_t lift, int8
 	if (ae[2] > 500) ae[2] = 500;
 	if (ae[3] < 0) ae[3] = 0; 
 	if (ae[3] > 500) ae[3] = 500;	
-	
-	return ae[4];
+
 }
 
  
