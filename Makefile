@@ -42,6 +42,7 @@ $(abspath ../components/drivers_nrf/delay/nrf_delay.c) \
 $(abspath ./in4073.c) \
 $(abspath ./RS232.c) \
 $(abspath ./control.c) \
+$(abspath ./yaw_control.c) \
 $(abspath ./manual_mode.c) \
 $(abspath ./drivers/gpio.c) \
 $(abspath ./drivers/timers.c) \

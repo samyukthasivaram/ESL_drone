@@ -16,7 +16,6 @@
 #define DataSize 10
 #define POLY 0x8005
 
-
 static volatile bool read1 = false,write1 = false;
 
 void rs232_init(void)
@@ -149,7 +148,7 @@ void rs232_read()
 				else    //if CRC is wrong check for start byte to start over
 				{    
 
-					printf("CRC wrong");
+					//printf("CRC wrong");
 
 					if(check1 == StartByte)
 					{
@@ -205,7 +204,7 @@ for(int k=0; k<10; k++)
 			//printf("tx_buffer[%d]=%d | ",k,p[k]);
 	}
 //if(mode!=p[0])
-printf("%d \n",keyboard);
+printf("%d\n",mode);
 	mode= p[0];
 	
 	lift = (p[2]<<8)+p[1];
@@ -217,9 +216,14 @@ printf("%d \n",keyboard);
 	
 	keyboard = p[9];
 
+
+/*yaw=(yaw+32000)/1000;
+lift=(lift+32000)/1000;
+roll=(roll+32000)/1000;
+pitch=(pitch+32000)/1000;*/
+
 //for(int ii=0;ii<DataSize;ii++) 
- 
-manual_mode_withoutsqrt();
+//flag1=1;
 }
 
 /*
