@@ -1,5 +1,6 @@
-#include <in4073.h>
-#include <RS232.h>
+#include "in4073.h"
+#include "RS232.h"
+#include "crc.h"
 #include <time.h>
 #include <stdint.h>
 #include <inttypes.h>
@@ -14,7 +15,6 @@
 
 #define DataSize 10
 #define POLY 0x8005
-
 
 static volatile bool read1 = false,write1 = false;
 
@@ -49,16 +49,16 @@ uint16_t cal_crc(unsigned int *ptr, unsigned int len) {
  ptr++;
  }
  return(crc);
-}
+} */
 
 //CRC calculation without table
-uint16_t calc_crc(int frame[],int DLEN)
+int16_t calc_crc(int frame[])
 
 {
-    uint16_t crc,byte;
+    int16_t crc,byte;
     crc = 0;
     
-    for (int i=1; i< DLEN+1; i++)
+    for (int i=0; i< 10; i++)
     {
             byte=frame[i];
             crc ^=byte<<8;
@@ -71,33 +71,41 @@ uint16_t calc_crc(int frame[],int DLEN)
     }
     return crc;
 }
-bool check_crc(int c1, int c2, queue *q)
+bool check_crc(int8_t c1, int8_t c2, int q[])
 {
-   unsigned int w= cal_crc(q,10);
-   unsigned int new_c = (c2>>8)|c1;
-  if (~w&new_c)
-     return false;
+   int16_t w= calc_crc(q);
+   int16_t new_c = ((c2<<8) & 0xFF00) | (c1 & 0x00FF);
+//printf("w=%d",w);
+//printf("new crc=%d|%d|%d\n",new_c,c1,c2);
+  if (w==new_c)
+
+     return true;
   else
-    return true;
-}*/
-uint8_t frame[DataSize];
+    return false;
+}
+int frame[DataSize];
 uint8_t size=0;
+uint8_t count=0;
+int rx_wrong[10];
+int8_t StartByte=0xFF;
 void rs232_read()
 {
 	static int state = 0;
 	int8_t data = 0;
 	int i=0,j = 0;
-	int check1 = 0,check2 = 0;	//store CRC
-	queue *rx_buffer;
-	queue *rx_wrong;	//store data when CRC result goes wrong <TO DO> 
-	int count=0;
-	int p[DataSize];
+	static int8_t check1 = 0,check2 = 0;	//store CRC
+	//uint16_t crc=0;
+	//queue *rx_buffer;
+	//int rx_wrong[13];	//store data when CRC result goes wrong <TO DO> 
+	//int p[DataSize];
 	
 		if(rx_queue.count>0)
 	{		data = dequeue(&rx_queue); 
+			//printf("%d|  ",data);
 		switch(state)
 		{
 			case 0:
+				//printf("CASE0");
 				if(data == StartByte)
 				{
 					read1 = true;
@@ -108,102 +116,114 @@ void rs232_read()
 				break;
 				
 			case 1:
+				//printf("CASE1");
 				if(count >=DataSize)
 				{
 					check1 = data;
-					rx_buffer->count = 0;
+					count = 0;
 					state = 2;
 				}
 				else
 				{
 					frame[count] = data;
 					count++;
+					//printf("count=%d \t \t \t \n",count);
 					state = 1;
 				}
 				break;
 			
 
 			case 2:
+				//printf("CASE2");
 				check2 = data;
-				if(1==1)//check CRC <TO DO>
+				//printf("check1=%d",check1);
+				if(check_crc(check1,check2,frame))//check CRC <TO DO>
 				{
+					//printf("CRC right");
 					read1 = false;
 					state = 0;
 					store_data(frame);
-					for(int ii=0;ii<DataSize;ii++) { printf("0x%02X ", frame[ii]);}
-					//usleep(10000);
+					//usleep(100000);
 				}
 				else    //if CRC is wrong check for start byte to start over
-				{
-					init_queue(rx_buffer);
+				{    
+
+					//printf("CRC wrong");
 
 					if(check1 == StartByte)
 					{
-						rx_buffer->Data[0] = check2;
-						rx_buffer->count = 1;
+						frame[0] = check2;
+						count = 1;
 						state = 1;
+						//printf("check1 == StartByte");
 					}
 					else if(check2 == StartByte)
 					{
-						rx_buffer->count = 0;
+						count = 0;
 						state = 1;
+						//printf("check2 == StartByte");
 					}
 					else
-					{
-						for(i=0; i<DataLen; i++)
+					{	
+						//printf("data == StartByte");
+						for(i=0; i<10; i++)  //DataLen=12 (?)
 						{
-							if(rx_buffer->Data[i] == StartByte)
+							if(frame[i] == StartByte)
 							{
-								rx_buffer->count = i + 1;
-								count = DataLen + 1 - i;
-								init_queue(rx_wrong);
-								for(j=0; j<count-1; j++)
-									rx_wrong->Data[j] = rx_buffer->Data[i+1+j];
-								rx_wrong->Data[count] = check1;
-								rx_wrong->Data[count+1] = check2;
+								int k=0;
+								for(j=i+1; j<10; j++)
+									rx_wrong[k++] = frame[j];
+								rx_wrong[k++] = check1;
+								rx_wrong[k++] = check2;
 								state = 1;
+								for(j=0; j<k; j++)
+									frame[j]=rx_wrong[j];
 							}
 							else	state = 0;
+							break;
 						}
 					}
 				}
 
 				break;
 			
-			default: break;
+			default: printf("deafult case");
+					break;
 		}
 	}
 }
 
 
 void store_data(int p[DataSize])
-{	int16_t temp_1, temp_2, temp_3;
-
-
+{	//int16_t temp_1, temp_2;
+	//int16_t temp_3;
+for(int k=0; k<10; k++)
+	{
+			//tx_buffer[k]=0xFF;
+			//rs232_putchar(tx_buffer[k]);
+			//printf("tx_buffer[%d]=%d | ",k,p[k]);
+	}
+//if(mode!=p[0])
+printf("%d|%d\n",mode,keyboard);
 	mode= p[0];
 	
-	temp_1 = p[1];
-	temp_2 = p[2];	
-	temp_3= temp_1<<8;
-	lift = temp_3+temp_2;
+	lift = (p[2]<<8)+p[1];
+
+	roll = (p[4]<<8)+p[3];
+	pitch = (p[6]<<8)+p[5];
 	
-	temp_1 = p[3];
-	temp_2 = p[4];	
-	temp_3= temp_1<<8;
-	roll = temp_3+temp_2;
-	
-	temp_1 = p[5];
-	temp_2 = p[6];	
-	temp_3= temp_1<<8;
-	pitch = temp_3+temp_2;
-	
-	temp_1 = p[7];
-	temp_2 = p[8];	
-	temp_3= temp_1<<8;
-	yaw = temp_3+temp_2;
+	yaw = (p[8]<<8)+p[7];
 	
 	keyboard = p[9];
-	
+
+
+/*yaw=(yaw+32000)/1000;
+lift=(lift+32000)/1000;
+roll=(roll+32000)/1000;
+pitch=(pitch+32000)/1000;*/
+
+//for(int ii=0;ii<DataSize;ii++) 
+//flag1=1;
 }
 
 /*

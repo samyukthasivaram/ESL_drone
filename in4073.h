@@ -28,10 +28,16 @@
 #define INT_PIN		5
 
 bool demo_done;
+void manual_mode_sqrt();
+int16_t roll,pitch,yaw,lift;
+int16_t rollup,pitchup,yawup,liftup,rolldown,pitchdown,yawdown,liftdown;
 
+int8_t keyboard,mode;
+// int16_t p = 10;
 // Control
 int16_t motor[4],ae[4];
 void run_filters_and_control();
+void yaw_control();
 
 // Timers
 #define TIMER_PERIOD	50 //50ms=20Hz (MAX 23bit, 4.6h)
@@ -91,6 +97,7 @@ void baro_init(void);
 uint16_t bat_volt;
 void adc_init(void);
 void adc_request_sample(void);
+void bat_chk();
 
 // Flash
 bool spi_flash_init(void);

@@ -1,4 +1,6 @@
 //http://www.microchip.com/forums/m577584.aspx
+
+#include "in4073.h"
 int squareroot(int value)
 {
  unsigned Root = 0;
@@ -7,14 +9,14 @@ int squareroot(int value)
            {
              unsigned Trial = Root + Bit;
              Root >>= 1;
-             if ( Trial <= Value )
+             if ( Trial <= value )
                {
                  Root += Bit;
-                 Value -= Trial;
+                 value -= Trial;
                }
            }
-         printf("%d",Root);		 
-		return root;
+         //printf("%d",Root);		 
+		return Root;
 }
 
 void manual_mode_sqrt()
@@ -23,49 +25,43 @@ int w1_sqr = 0;
 int w2_sqr = 0;
 int w3_sqr = 0;
 int w4_sqr = 0;
-int ae1, ae2, ae3, ae4;
 w1_sqr= -yaw - lift + pitch + pitch;
-ae1 = squareroot(w1_sqr);
+ae[0] = squareroot(w1_sqr);
 w3_sqr= -yaw - lift - pitch - pitch;
-ae3 = squareroot(w3_sqr);
+ae[2] = squareroot(w3_sqr);
 w2_sqr= yaw - lift - roll - roll;
-ae2 = squareroot(w2_sqr);
+ae[1] = squareroot(w2_sqr);
 w4_sqr= yaw - lift + roll + roll;
-ae4 = squareroot(w4_sqr);
-
- if (ae1 < 0) ae1 = 0; 
- if (ae1 > 500) ae1 = 500;
- if (ae2 < 0) ae2 = 0; 
- if (ae2 > 500) ae2 = 500;
- if (ae3 < 0) ae3 = 0; 
- if (ae3 > 500) ae3 = 500;
- if (ae4 < 0) ae4 = 0; 
- if (ae4 > 500) ae4 = 500;
-
+ae[3] = squareroot(w4_sqr);
+ //printf("m1=%d|%d|%d|%d|\n",ae[0],ae[1],ae[2],ae[3]);
+if (ae[0] < 50) ae[0] = 50; 
+ if (ae[0] > 400) ae[0] = 400;
+ if (ae[1] < 50) ae[1] = 50; 
+ if (ae[1] > 400) ae[1] = 400;
+ if (ae[2] < 50) ae[2] = 50; 
+ if (ae[2] > 400) ae[2] = 400;
+ if (ae[3] < 50) ae[3] = 50; 
+ if (ae[3] > 400) ae[3] = 400;
 }
 
 void manual_mode_withoutsqrt()
 {
-int ae1 = 0;
-int ae2 = 0;
-int ae3 = 0;
-int ae4 = 0;
-ae1= -yaw - lift + pitch + pitch;
-ae2= -yaw - lift - pitch - pitch;
-ae3= yaw - lift - roll - roll;
-ae4= yaw - lift + roll + roll;
 
+ae[0]= (int16_t)(-yaw - lift + pitch )/50;
+ae[2]= (int16_t)(-yaw - lift - pitch )/50;
+ae[1]= (int16_t)(yaw - lift - roll )/50;
+ae[3]= (int16_t)(yaw - lift + roll )/50;
 
+// printf("m1=%d|%d|%d|%d|\n",ae[0],ae[1],ae[2],ae[3]);
 
- if (ae1 < 0) ae1 = 0; 
- if (ae1 > 500) ae1 = 500;
- if (ae2 < 0) ae2 = 0; 
- if (ae2 > 500) ae2 = 500;
- if (ae3 < 0) ae3 = 0; 
- if (ae3 > 500) ae3 = 500;
- if (ae4 < 0) ae4 = 0; 
- if (ae4 > 500) ae4 = 500;
- 
+ if (ae[0] < 200) ae[0] = 200; 
+ if (ae[0] > 700) ae[0] = 700;
+ if (ae[1] < 200) ae[1] = 200; 
+ if (ae[1] > 700) ae[1] = 700;
+ if (ae[2] < 200) ae[2] = 200; 
+ if (ae[2] > 700) ae[2] = 700;
+ if (ae[3] < 200) ae[3] = 200; 
+ if (ae[3] > 700) ae[3] = 700;
 }
 
 void manual_mode_lookup()
