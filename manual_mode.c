@@ -15,7 +15,7 @@ int squareroot(int value)
                  value -= Trial;
                }
            }
-         //printf("%d",Root);		 
+        printf("%d",Root);		 
 		return Root;
 }
 
