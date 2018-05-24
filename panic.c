@@ -5,6 +5,9 @@ void panicmode()
 {//slow down motor with counter delay
 
   uint16_t pcounter = 1000;
+
+for(int mm=0;m<3;m++)
+ae[mm]=200;
   for(;pcounter>0;pcounter--)
 {
 	if(ae[0]>0) ae[0]--;
