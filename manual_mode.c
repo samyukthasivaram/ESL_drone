@@ -1,7 +1,7 @@
 //http://www.microchip.com/forums/m577584.aspx
 
 #include "in4073.h"
-int squareroot(int value)
+int squareroot(int16_t value)
 {
  	unsigned Root = 0;
     unsigned Bit;
