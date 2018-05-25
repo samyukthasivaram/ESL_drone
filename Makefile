@@ -44,7 +44,8 @@ $(abspath ./RS232.c) \
 $(abspath ./control.c) \
 $(abspath ./yaw_control.c) \
 $(abspath ./manual_mode.c) \
-$(abspath ./panicmode.c) \
+$(abspath ./data_logging.c) \
+$(abspath ./panic.c) \
 $(abspath ./drivers/gpio.c) \
 $(abspath ./drivers/timers.c) \
 $(abspath ./drivers/uart.c) \

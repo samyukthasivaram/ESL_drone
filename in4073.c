@@ -15,7 +15,6 @@
 
 #include "in4073.h"
 #include "RS232.h"
-
 /*------------------------------------------------------------------
  * process_key -- process command keys
  *------------------------------------------------------------------
@@ -65,8 +64,8 @@ void process_key(uint8_t c)
 		case 27:
 			demo_done = true;
 			break;
-		default:
-			nrf_gpio_pin_toggle(RED);
+		//default:
+			//nrf_gpio_pin_toggle(RED);
 	}
 }
 
@@ -99,15 +98,14 @@ int main(void)
 
 
 
-	bat_chk();
+	//bat_chk();
 
 	while (!demo_done)
 	
 	{	
-		//printf(" |");
 		rs232_read();
-		if(mode==1||mode==9||mode==0)
-			panicmode();
+		if(mode==1||mode==9)
+			{panicmode();demo_done=1;}
 		if(mode==2)
 			manual_mode_sqrt();
 		if(keyboard!=0xF0)
@@ -121,7 +119,7 @@ int main(void)
 			if (counter++%20 == 0) nrf_gpio_pin_toggle(BLUE);
 
 			adc_request_sample();
-                  	
+                  	//printf(" |");
 			//read_baro(); 
 
 			/*printf("%10ld | ", get_time_us());
@@ -136,11 +134,15 @@ int main(void)
 		if (check_sensor_int_flag()) 
 		{
 			get_dmp_data();
+			//bat_chk();
 			run_filters_and_control();
-			bat_chk();
+			
 		}
+//rs232_write();
 	}	
-
+	//save_data_in_flash();
+	//read_from_flash();
+	//rs232_write();
 	printf("\n\t Goodbye \n\n");
 	nrf_delay_ms(100);
 

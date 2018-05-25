@@ -29,7 +29,9 @@
 
 bool demo_done;
 void manual_mode_sqrt();
-int16_t roll,pitch,yaw,lift;
+void panicmode();
+int16_t roll,pitch,yaw;
+uint16_t lift;
 int16_t rollup,pitchup,yawup,liftup,rolldown,pitchdown,yawdown,liftdown;
 
 int8_t keyboard,mode;
@@ -106,6 +108,9 @@ bool flash_write_byte(uint32_t address, uint8_t data);
 bool flash_write_bytes(uint32_t address, uint8_t *data, uint32_t count);
 bool flash_read_byte(uint32_t address, uint8_t *buffer);
 bool flash_read_bytes(uint32_t address, uint8_t *buffer, uint32_t count);
+//void update_data(uint8_t *data_buffer);
+//void save_data_in_flash();
+//void read_from_flash();
 
 // BLE
 queue ble_rx_queue;
