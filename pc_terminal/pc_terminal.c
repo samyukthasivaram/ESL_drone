@@ -248,13 +248,13 @@ int main(int argc, char **argv)
 	char	c;
 	//int *tx_frame;
 	term_puts("\nTerminal program - Embedded Real-Time Systems\n");
-	/*int fd;
+	int fd;
         #define JS_DEV	"/dev/input/js0"
 	if ((fd = open(JS_DEV, O_RDONLY)) < 0) {
 		perror("joystick error");
 		exit(1);
 	}
-*/
+
 	term_initio();
 	rs232_open();
 
@@ -284,7 +284,7 @@ int main(int argc, char **argv)
 	int tx_buffer[13];
 	int16_t crc=0x0000;
 	struct js_event js;
-	/*
+	
 	// input from joystick 
 
 
@@ -325,12 +325,12 @@ int main(int argc, char **argv)
 		yaw = axis[2];
 		lift = axis[3];
 		}
-*/
+
              
-		lift = -15000;
-		roll = -20000;
-		pitch = -32000;
-		yaw = -10000;
+		//lift = -15000;
+		//roll = -20000;
+		//pitch = -32000;
+		//yaw = -10000;
                 //printf("%d|%d|%d|%d|\t\n",pitch,roll,yaw,lift);
 			
 		//keyboard press 
@@ -483,11 +483,15 @@ int main(int argc, char **argv)
 			//printf("tx[%d]=%d | \t ",k,tx_buffer[k]);
 	}
 	
+	for(int kk=0; kk<22; kk++)
+	{
 		if ((c = rs232_getchar_nb()) != -1)  //possible cause of delay
-			term_putchar(c);
-	
-	
-		
+			//term_putchar(c);
+			{
+				printf("%d | ", c);
+			}
+	}
+		printf("\n");
 	}
 
 	term_exitio();
