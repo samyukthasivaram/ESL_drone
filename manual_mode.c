@@ -1,9 +1,9 @@
 //http://www.microchip.com/forums/m577584.aspx
 
 #include "in4073.h"
-int squareroot(int16_t value)
+int16_t squareroot(int16_t value)
 {
- 	unsigned Root = 0;
+    unsigned Root = 0;
     unsigned Bit;
     if(value<0)	value = - value;
     for ( Bit = 0x4000; Bit > 0; Bit >>= 2 )
