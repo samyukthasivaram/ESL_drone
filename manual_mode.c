@@ -16,7 +16,7 @@ int16_t squareroot(int16_t value)
                 value -= Trial;
             }
         }
-        printf("%d",Root);		 
+       // printf("%d",Root);		 
 		return Root;
 }
 
@@ -36,7 +36,7 @@ void manual_mode_sqrt()
 	ae[2] = squareroot(w3_sqr) * 3;
 	ae[3] = squareroot(w4_sqr) * 3;
 	
- //printf("m1=%d|%d|%d|%d|\n",ae[0],ae[1],ae[2],ae[3]);
+ printf("m1=%d|%d|%d|%d|\n",ae[0],ae[1],ae[2],ae[3]);
  
 	if (ae[0] < 200) ae[0] = 200; 
 	if (ae[0] > 700) ae[0] = 700;
@@ -74,3 +74,4 @@ void manual_mode_lookup()
 
 
 }
+
