@@ -276,7 +276,7 @@ int main(int argc, char **argv)
 	int flag_mode = 0;
 	static int8_t mode = 0;
 	int8_t start=0xFF; 
-	uint8_t c=0;
+	int c=0;
 	struct termios options;
 	int count=0;
 	int8_t keyboard=0xF0;
@@ -502,9 +502,14 @@ int main(int argc, char **argv)
 	
 
 }
-	if ((c = rs232_getchar_nb()) != -1)  //possible cause of delay
+	//if ((c = rs232_getchar_nb()) != -1)  //possible cause of delay
+		c=rs232_getchar();
 		if((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c>='0' && c<='9')||c=='\n')
-	term_putchar(c);
+	{
+	printf("%d | ", c);
+	//term_putchar(c);
+	//printf("\n");
+}
 		
 	
 	}

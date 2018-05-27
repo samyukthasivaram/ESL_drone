@@ -194,18 +194,18 @@ void rs232_read()
 }
 
 //transit frame - ae[0] | ae[1] | ae[2] | ae[3] | bat_volt | phi | theta | psi | sp | sq | sr
-/*void rs232_write()
+void rs232_write()
 {
 	int8_t tx_buff[22];
 	int16_t bat_volt_temp = bat_volt - 32767;
-	int16_t crc;
+	//int16_t crc;
 	
 	tx_buff[0] 		= 0xFF;
-	tx_buff[1] 		= (int8_t)ae[0];
-	tx_buff[2] 		= (int8_t)(ae[0]>>8);
-	tx_buff[3] 		= (int8_t)ae[1];
-	tx_buff[4] 		= (int8_t)(ae[1]>>8);
-	tx_buff[5] 		= (int8_t)ae[2];
+	tx_buff[1] 		= 0xFF;
+	tx_buff[2] 		= 0xFF;
+	tx_buff[3] 		= 0xFF;
+	tx_buff[4] 		= 0xFF;
+	tx_buff[5] 		= 0xFF;
 	tx_buff[6] 		= (int8_t)(ae[2]>>8);
 	tx_buff[7] 		= (int8_t)ae[3];
 	tx_buff[8] 		= (int8_t)(ae[3]>>8);
@@ -224,19 +224,20 @@ void rs232_read()
 	tx_buff[21]		 = (int8_t)sr;
 	tx_buff[22]      = (int8_t)(sr>>8);
 			
-	crc = calc_crc(tx_buff);
+	//crc = calc_crc(tx_buff);
 	
-	tx_buff[23]= (int8_t)crc;
-	tx_buff[24]= (int8_t)(crc>>8);
+	//tx_buff[23]= (int8_t)crc;
+	//tx_buff[24]= (int8_t)(crc>>8);
 	
 	
-	for(int i=0; i<25; i++)
-		uart_put(tx_buff[i]);
+	for(int i=0; i<6; i++)
+		//uart_put(tx_buff[i]);
+		enqueue(&tx_queue, tx_buff[i]);
 	
 	
 	
 }
-*/
+
 
 
 void store_data(int p[DataSize])
