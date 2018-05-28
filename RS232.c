@@ -1,30 +1,20 @@
-#include <in4073.h>
-//#include "pc_terminal.c"
-#include <RS232.h>
-#include <fcntl.h>
+#include "in4073.h"
+#include "RS232.h"
+#include "crc.h"
 #include <time.h>
-//#include "js.c"
 #include <stdint.h>
 #include <inttypes.h>
-//#include <sys/ioctl.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <stdlib.h>
-#include <fcntl.h>
-#include <stdint.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
-//#include <termios.h>
 #include <sys/stat.h>
 
-int rs232_getchar();
-int rs232_putchar(char c);
-int rs232_getchar_nb();
-
-
-
+#define DataSize 10
+#define POLY 0x8005
 
 static volatile bool read1 = false,write1 = false;
 
@@ -39,227 +29,247 @@ void rs232_init(void)
  *Data format: | StartByte | Data | CRC1 | CRC2 | 14 bytes
   ---------------------------------------------------------
  */
-unsigned int cal_crc(unsigned int *ptr, unsigned int len) {
- unsigned int crc;
- unsigned char da;
- unsigned int crc_ta[16]={ 
+/*
+//CRC calculation with table
+uint16_t cal_crc(unsigned int *ptr, unsigned int len) {
+ uint16_t crc;
+ unsigned int da;
+ static const unsigned int crc_ta[16]={ 
  0x0000,0x1021,0x2042,0x3063,0x4084,0x50a5,0x60c6,0x70e7,
 0x8108,0x9129,0xa14a,0xb16b,0xc18c,0xd1ad,0xe1ce,0xf1ef,
  };
  crc=0;
  while(len--!=0) {
- da=((unsigned int)(crc/256))/16; 
+ da=((uint8_t)(crc/256))/16; 
  crc<<=4; 
  crc^=crc_ta[da^(*ptr/16)]; 
- da=((unsigned char)(crc/256))/16; 
+ da=((uint8_t)(crc/256))/16; 
  crc<<=4; 
  crc^=crc_ta[da^(*ptr&0x0f)];
  ptr++;
  }
  return(crc);
-}
+} */
 
-bool check_crc(int c1, int c2, queue q)
+//CRC calculation without table
+int16_t calc_crc(int frame[])
+
 {
-   unsigned int w= cal_crc(q,10);
-   unsigned int new_c = (c2>>8)|c1;
-  if (~w&new_c)
-     return false;
-  else
-    return true;
+    int16_t crc,byte;
+    crc = 0;
+    
+    for (int i=0; i< 10; i++)
+    {
+            byte=frame[i];
+            crc ^=byte<<8;
+	    for(int k=8;k>0;k--)
+		{if(crc & 0x8000)
+			crc^=POLY;
+		 crc=crc<<1;
+		}
+    
+    }
+    return crc;
 }
+bool check_crc(int8_t c1, int8_t c2, int q[])
+{
+   int16_t w= calc_crc(q);
+   int16_t new_c = ((c2<<8) & 0xFF00) | (c1 & 0x00FF);
+//printf("w=%d",w);
+//printf("new crc=%d|%d|%d\n",new_c,c1,c2);
+  if (w==new_c)
 
-bool rs232_read(int p[])
+     return true;
+  else
+    return false;
+}
+int frame[DataSize];
+uint8_t size=0;
+uint8_t count=0;
+int rx_wrong[10];
+int8_t StartByte=0xFF;
+void rs232_read()
 {
 	static int state = 0;
-	int data = 0;
+	int8_t data = 0;
 	int i=0,j = 0;
-	int check1 = 0,check2 = 0;	//store CRC
-	queue *rx_buffer;
-	queue *rx_wrong;	//store data when CRC result goes wrong
-	int count;
-
-	init_queue(rx_buffer);
-	*p = [0];
+	static int8_t check1 = 0,check2 = 0;	//store CRC
+	//uint16_t crc=0;
+	//queue *rx_buffer;
+	//int rx_wrong[13];	//store data when CRC result goes wrong <TO DO> 
+	//int p[DataSize];
 	
-	while(1)
-	{
-		data = rs232_getchar();
+		if(rx_queue.count>0)
+	{		data = dequeue(&rx_queue); 
+			//printf("%d| \n ",data);
 		switch(state)
 		{
 			case 0:
+				//printf("CASE0");
 				if(data == StartByte)
 				{
-					init_queue(rx_buffer);
-					rx_buffer->last = DataLen;
 					read1 = true;
+					size=0;
 					state = 1;
 				}
 				else	state = 0;
 				break;
 				
 			case 1:
-				if(rx_buffer.count >=DataLen)
+				//printf("CASE1");
+				if(count >=DataSize)
 				{
 					check1 = data;
-					rx_buffer->count = 0;
+					count = 0;
 					state = 2;
 				}
 				else
 				{
-					rx_buffer->Data[rx_buffer->count] = data;
-					rx_buffer->count++;
+					frame[count] = data;
+					count++;
+					//printf("count=%d \t \t \t \n",count);
 					state = 1;
 				}
 				break;
+			
 
 			case 2:
+				//printf("CASE2");
 				check2 = data;
-				if(check_CRC(check1, check2, rx_buffer))
+				//printf("check1=%d",check1);
+				if(check_crc(check1,check2,frame))//check CRC <TO DO>
 				{
+					//printf("CRC right");
 					read1 = false;
-					store_data(p[], rx_buffer);
 					state = 0;
-					usleep(10000);
+					store_data(frame);
+					//usleep(100000);
 				}
-				else
-				{
-					init_queue(rx_buffer);
+				else    //if CRC is wrong check for start byte to start over
+				{    
+
+					//printf("CRC wrong");
 
 					if(check1 == StartByte)
 					{
-						rx_buffer->Data[0] = check2;
-						rx_buffer->count = 1;
+						frame[0] = check2;
+						count = 1;
 						state = 1;
+						//printf("check1 == StartByte");
 					}
 					else if(check2 == StartByte)
 					{
-						rx_buffer->count = 0;
+						count = 0;
 						state = 1;
+						//printf("check2 == StartByte");
 					}
 					else
-					{
-						for(i=0; i<DataLen; i++)
+					{	
+						//printf("data == StartByte");
+						for(i=0; i<10; i++)  //DataLen=12 (?)
 						{
-							if(rx_buffer->Data[i] == StartByte)
+							if(frame[i] == StartByte)
 							{
-								rx_buffer->count = i + 1;
-								count = DataLen + 1 - i;
-								init_queue(rx_wrong);
-								for(j=0; j<count-1; j++)
-									rx_wrong->Data[j] = rx_buffer->Data[i+1+j];
-								rx_wrong->Data[count] = check1;
-								rx_wrong->Data[count+1] = check2;
+								int k=0;
+								for(j=i+1; j<10; j++)
+									rx_wrong[k++] = frame[j];
+								rx_wrong[k++] = check1;
+								rx_wrong[k++] = check2;
 								state = 1;
+								for(j=0; j<k; j++)
+									frame[j]=rx_wrong[j];
 							}
 							else	state = 0;
+							break;
 						}
 					}
 				}
 
 				break;
 			
-			default: break;
+			default: printf("deafult case");
+					break;
 		}
 	}
+	
 }
 
-
-int store_data(int p[DataSize], queue *q)
+//transit frame - ae[0] | ae[1] | ae[2] | ae[3] | bat_volt | phi | theta | psi | sp | sq | sr
+/*void rs232_write()
 {
-	for(i=0; i<DataSize; i++)
-		p[i] = q->Data[i];
-	return p;
+	int8_t tx_buff[22];
+	int16_t bat_volt_temp = bat_volt - 32767;
+	int16_t crc;
+	
+	tx_buff[0] 		= 0xFF;
+	tx_buff[1] 		= (int8_t)ae[0];
+	tx_buff[2] 		= (int8_t)(ae[0]>>8);
+	tx_buff[3] 		= (int8_t)ae[1];
+	tx_buff[4] 		= (int8_t)(ae[1]>>8);
+	tx_buff[5] 		= (int8_t)ae[2];
+	tx_buff[6] 		= (int8_t)(ae[2]>>8);
+	tx_buff[7] 		= (int8_t)ae[3];
+	tx_buff[8] 		= (int8_t)(ae[3]>>8);
+	tx_buff[9] 		= (int8_t)bat_volt_temp;
+	tx_buff[10]		 = (int8_t)(bat_volt_temp>>8);
+	tx_buff[11]		 = (int8_t)phi;
+	tx_buff[12]		 = (int8_t)(phi>>8);
+	tx_buff[13]		 = (int8_t)theta;
+	tx_buff[14]		 = (int8_t)(theta>>8);
+	tx_buff[15]		 = (int8_t)psi;
+	tx_buff[16]		 = (int8_t)(psi>>8);
+	tx_buff[17]		 = (int8_t)sp;
+	tx_buff[18]		 = (int8_t)(sp>>8);
+	tx_buff[19]		 = (int8_t)sq;
+	tx_buff[20]		 = (int8_t)(sq>>8);
+	tx_buff[21]		 = (int8_t)sr;
+	tx_buff[22]      = (int8_t)(sr>>8);
+			
+	crc = calc_crc(tx_buff);
+	
+	tx_buff[23]= (int8_t)crc;
+	tx_buff[24]= (int8_t)(crc>>8);
+	
+	
+	for(int i=0; i<25; i++)
+		uart_put(tx_buff[i]);
+	
+	
+	
 }
-
-int fd_RS232;
-void rs232_open(void)
-{
-  	char 		*name;
-  	int 		result;
-  	struct termios	tty;
-
-       	fd_RS232 = open("/dev/ttyUSB0", O_RDWR | O_NOCTTY);  // Hardcode your serial port here, or request it as an argument at runtime
-
-	assert(fd_RS232>=0);
-
-  	result = isatty(fd_RS232);
-  	assert(result == 1);
-
-  	name = ttyname(fd_RS232);
-  	assert(name != 0);
-
-  	result = tcgetattr(fd_RS232, &tty);
-	assert(result == 0);
-
-	tty.c_iflag = IGNBRK; /* ignore break condition */
-	tty.c_oflag = 0;
-	tty.c_lflag = 0;
-
-	tty.c_cflag = (tty.c_cflag & ~CSIZE) | CS8; /* 8 bits-per-character */
-	tty.c_cflag |= CLOCAL | CREAD; /* Ignore model status + read input */
-
-	cfsetospeed(&tty, B115200);
-	cfsetispeed(&tty, B115200);
-
-	tty.c_cc[VMIN]  = 0;
-	tty.c_cc[VTIME] = 1; // added timeout
-
-	tty.c_iflag &= ~(IXON|IXOFF|IXANY);
-
-	result = tcsetattr (fd_RS232, TCSANOW, &tty); /* non-canonical */
-
-	tcflush(fd_RS232, TCIOFLUSH); /* flush I/O buffer */
-}
+*/
 
 
-void 	rs232_close(void)
-{
-  	int 	result;
-
-  	result = close(fd_RS232);
-  	assert (result==0);
-}
-
-
-int	rs232_getchar_nb()
-{
-	int 		result;
-	unsigned char 	c;
-
-	result = read(fd_RS232, &c, 1);
-
-	if (result == 0)
-		return -1;
-
-	else
+void store_data(int p[DataSize])
+{	//int16_t temp_1, temp_2;
+	//int16_t temp_3;
+for(int k=0; k<10; k++)
 	{
-		assert(result == 1);
-		return (int) c;
+			//tx_buffer[k]=0xFF;
+			//rs232_putchar(tx_buffer[k]);
+			//printf("tx_buffer[%d]=%d | ",k,p[k]);
 	}
-}
+//if(mode!=p[0])
+//printf("mode=%d|key=%d\n",mode,keyboard);
+	mode= p[0];
+	
+	lift = (p[2]<<8)+p[1];
+
+	roll = (p[4]<<8)+p[3];
+	pitch = (p[6]<<8)+p[5];
+	
+	yaw = (p[8]<<8)+p[7];
+	
+	keyboard = p[9];
 
 
-int 	rs232_getchar()
-{
-	int 	c;
+/*yaw=(yaw+32000)/1000;
+lift=(lift+32000)/1000;
+roll=(roll+32000)/1000;
+pitch=(pitch+32000)/1000;*/
 
-	while ((c = rs232_getchar_nb()) == -1)
-		;
-	return c;
-}
-
-
-int 	rs232_putchar(char c)
-{
-	int result;
-
-	do {
-		result = (int) write(fd_RS232, &c, 1);
-	} while (result == 0);
-
-	assert(result == 1);
-	return result;
+//for(int ii=0;ii<DataSize;ii++) 
+//flag1=1;
 }
 
 /*

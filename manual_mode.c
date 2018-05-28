@@ -1,75 +1,77 @@
 //http://www.microchip.com/forums/m577584.aspx
-int squareroot(int value)
+
+#include "in4073.h"
+int16_t squareroot(int16_t value)
 {
- unsigned Root = 0;
-         unsigned Bit;
-         for ( Bit = 0x4000; Bit > 0; Bit >>= 2 )
-           {
-             unsigned Trial = Root + Bit;
-             Root >>= 1;
-             if ( Trial <= Value )
-               {
-                 Root += Bit;
-                 Value -= Trial;
-               }
-           }
-         printf("%d",Root);		 
-		return root;
+    unsigned Root = 0;
+    unsigned Bit;
+    if(value<0)	value = - value;
+    for ( Bit = 0x4000; Bit > 0; Bit >>= 2 )
+        {
+        	unsigned Trial = Root + Bit;
+            Root >>= 1;
+            if ( Trial <= value )
+            {
+                Root += Bit;
+                value -= Trial;
+            }
+        }
+       // printf("%d",Root);		 
+		return Root;
 }
 
-void manual_mode_sqrt(int16_t roll, int16_t pitch, int16_t yaw, int16_t lift)
+void manual_mode_sqrt()
 {
-int w1_sqr = 0;
-int w2_sqr = 0;
-int w3_sqr = 0;
-int w4_sqr = 0;
-int ae1, ae2, ae3, ae4;
-w1_sqr= -yaw - lift + pitch + pitch;
-ae1 = squareroot(w1_sqr);
-w3_sqr= -yaw - lift - pitch - pitch;
-ae3 = squareroot(w3_sqr);
-w2_sqr= yaw - lift - roll - roll;
-ae2 = squareroot(w2_sqr);
-w4_sqr= yaw - lift + roll + roll;
-ae4 = squareroot(w4_sqr);
-
- if (ae1 < 0) ae1 = 0; 
- if (ae1 > 500) ae1 = 500;
- if (ae2 < 0) ae2 = 0; 
- if (ae2 > 500) ae2 = 500;
- if (ae3 < 0) ae3 = 0; 
- if (ae3 > 500) ae3 = 500;
- if (ae4 < 0) ae4 = 0; 
- if (ae4 > 500) ae4 = 500;
-
-}
-
-void manual_mode_withoutsqrt(int16_t roll, int16_t pitch, int16_t yaw, int16_t lift)
-{
-int ae1 = 0;
-int ae2 = 0;
-int ae3 = 0;
-int ae4 = 0;
-ae1= -yaw - lift + pitch + pitch;
-ae2= -yaw - lift - pitch - pitch;
-ae3= yaw - lift - roll - roll;
-ae4= yaw - lift + roll + roll;
-
-
-
- if (ae1 < 0) ae1 = 0; 
- if (ae1 > 500) ae1 = 500;
- if (ae2 < 0) ae2 = 0; 
- if (ae2 > 500) ae2 = 500;
- if (ae3 < 0) ae3 = 0; 
- if (ae3 > 500) ae3 = 500;
- if (ae4 < 0) ae4 = 0; 
- if (ae4 > 500) ae4 = 500;
+	int16_t w1_sqr = 0;
+	int16_t w2_sqr = 0;
+	int16_t w3_sqr = 0;
+	int16_t w4_sqr = 0;
+	w1_sqr= (int16_t) (-yaw + lift + pitch + pitch) / 2;
+	w3_sqr= (int16_t) (-yaw + lift - pitch - pitch) / 2;
+	w2_sqr= (int16_t) (yaw + lift - roll - roll) / 2;	
+	w4_sqr= (int16_t) (yaw + lift + roll + roll) / 2;
+		
+	ae[0] = squareroot(w1_sqr) * 3;
+	ae[1] = squareroot(w2_sqr) * 3;
+	ae[2] = squareroot(w3_sqr) * 3;
+	ae[3] = squareroot(w4_sqr) * 3;
+	
+ //printf("man=%d|%d|%d|%d|\n",ae[0],ae[1],ae[2],ae[3]);
  
+	if (ae[0] < 200) ae[0] = 200; 
+	if (ae[0] > 700) ae[0] = 700;
+	if (ae[1] < 200) ae[1] = 200; 
+	if (ae[1] > 700) ae[1] = 700;
+	if (ae[2] < 200) ae[2] = 200; 
+	if (ae[2] > 700) ae[2] = 700;
+	if (ae[3] < 200) ae[3] = 200; 
+	if (ae[3] > 700) ae[3] = 700;
 }
+/*
+void manual_mode_withoutsqrt()
+{
+
+ae[0]= (int16_t)(-yaw - lift + pitch )/50;
+ae[2]= (int16_t)(-yaw - lift - pitch )/50;
+ae[1]= (int16_t)(yaw - lift - roll )/50;
+ae[3]= (int16_t)(yaw - lift + roll )/50;
+
+ printf("m1=%d|%d|%d|%d|\n",ae[0],ae[1],ae[2],ae[3]);
+
+ if (ae[0] < 200) ae[0] = 200; 
+ if (ae[0] > 700) ae[0] = 700;
+ if (ae[1] < 200) ae[1] = 200; 
+ if (ae[1] > 700) ae[1] = 700;
+ if (ae[2] < 200) ae[2] = 200; 
+ if (ae[2] > 700) ae[2] = 700;
+ if (ae[3] < 200) ae[3] = 200; 
+ if (ae[3] > 700) ae[3] = 700;
+}
+*/
 
 void manual_mode_lookup()
 {
 
 
 }
+

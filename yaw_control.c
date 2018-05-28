@@ -1,5 +1,5 @@
 #include <stdlib.h>
-#include <in4073.h>
+#include "in4073.h"
 //include manual mode function of calculating square root.
 
 /*
@@ -10,33 +10,40 @@
  *every time.
  */
 
-static int16_t p = 10;	//initial value to be decided
+static int16_t p=10;	//initial value to be decided
 static int16_t error = 0;
 
-void yaw_control(int16_t roll, int16_t pitch, int16_t yaw, int16_t lift, int8_t keyboard)
-{	
-	if(keyboard == ‘8’)		p++;
-	else if(keyboard == ‘9’)	p--;
+void yaw_control()
+{
 	
+if(keyboard==8) p++;
+else if(keyboard==9) p--;
 	//Does p has a range?
 	
-	error = yaw - sr;
+	//sr = get_sensor_data();
+	error = yaw - (700*sr);
+if(error>100)
 	yaw = p * error;
 	
-	ae[0] = -yaw + lift + pitch + pitch;
-	ae[2] = -yaw + lift - pitch - pitch;
-	ae[1] = yaw + lift - roll - roll;
-	ae[3]= yaw + lift + roll + roll;
+ae[0]=(int16_t) (-yaw - lift)/4 ;
+ae[2]= (int16_t)(-yaw - lift )/4;
+ae[1]= (int16_t)(yaw - lift )/4;
+ae[3]=(int16_t) (yaw - lift )/4;
 
-	if (ae[0] < 0) ae[0] = 0; 
-	if (ae[0] > 500) ae[0] = 500;
-	if (ae[1] < 0) ae[1] = 0; 
-	if (ae[1] > 500) ae[1] = 500;
-	if (ae[2] < 0) ae[2] = 0; 
-	if (ae[2] > 500) ae[2] = 500;
-	if (ae[3] < 0) ae[3] = 0; 
-	if (ae[3] > 500) ae[3] = 500;	
+
+
+ if (ae[0] < 100) ae[0] = 100; 
+ if (ae[0] > 300) ae[0] = 300;
+ if (ae[1] < 100) ae[1] = 100; 
+ if (ae[1] > 300) ae[1] = 300;
+ if (ae[2] < 100) ae[2] = 100; 
+ if (ae[2] > 300) ae[2] = 300;
+ if (ae[3] < 100) ae[3] = 100; 
+ if (ae[3] > 300) ae[3] = 300;
+ //printf("m1=%d|m2=%d|",ae[0],ae[1]);
+//printf("sr=%6d| y=%d|\n ", sr,yaw);	
 
 }
 
  
+
