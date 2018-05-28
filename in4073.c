@@ -110,9 +110,9 @@ int main(void)
 	switch(state_mode)
 	{case 0: 
 			 safe_mode(); 
-			 if(roll!=0||pitch!=0||yaw!=0)
-	         {printf("Warning: Illegal Initial conditions");
-			  state_mode=0;}
+			 //if(roll!=0||pitch!=0||yaw!=0)
+	         //{printf("Warning: Illegal Initial conditions");
+			  //state_mode=0;}
 			 //if (bat_volt<1100)
 			 //{printf("Low battery");
 			 //state_mode=0;}
@@ -129,7 +129,7 @@ int main(void)
 	         switch(mode)
 	 			{case 2: manual_mode_sqrt();
 						break;
-		  		case 3: //printf("callibration");
+		  		case 3: //callibration_mode();
 						break;
 				case 4: yaw_control();
 						break;
@@ -157,10 +157,12 @@ int main(void)
 
 	if ( difference > trigger )
     {   previous=current;
-    printf("%10ld\n",get_time_us());
+    //printf("man=%d|%d|%d|%d|lift=%d|roll=%d|pitch=%d|yaw=%d|\n",ae[0],ae[1],ae[2],ae[3],lift,roll,pitch,yaw);
+	//printf("%6d %6d %6d | \n", sp, sq, sr);
+
+	
 	}
-	  
-		if (check_timer_flag()) 
+	  if (check_timer_flag()) 
 		{
 			if (counter++%20 == 0) nrf_gpio_pin_toggle(BLUE);
 
@@ -173,10 +175,11 @@ int main(void)
 			printf("%6d %6d %6d | ", phi, theta, psi);
 			printf("%6d %6d %6d | ", sp, sq, sr);
 			printf("%4d | %4ld | %6ld \n", bat_volt, temperature, pressure);*/
-
+			//printf("%6d %6d %6d |\n ", sp, sq, sr);
 
 			clear_timer_flag();
 		}
+		
 		if (check_sensor_int_flag()) 
 		{
 			get_dmp_data();//bat_chk();

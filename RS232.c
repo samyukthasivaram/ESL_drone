@@ -250,7 +250,7 @@ for(int k=0; k<10; k++)
 			//printf("tx_buffer[%d]=%d | ",k,p[k]);
 	}
 //if(mode!=p[0])
-//printf("mode=%d|key=%d\n",mode,keyboard);
+printf("mode=%d|key=%d\n",mode,keyboard);
 	mode= p[0];
 	
 	lift = (p[2]<<8)+p[1];

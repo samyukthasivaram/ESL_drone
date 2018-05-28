@@ -32,6 +32,7 @@ bool demo_done;
 void manual_mode_sqrt();
 void safe_mode();
 void panicmode();
+//void callibration_mode();
 int16_t roll,pitch,yaw,lift;
 int16_t rollup,pitchup,yawup,liftup,rolldown,pitchdown,yawdown,liftdown;
 

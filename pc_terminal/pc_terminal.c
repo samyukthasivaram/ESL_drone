@@ -244,8 +244,10 @@ int 	rs232_putchar(char c)
  *----------------------------------------------------------------
  */
 int main(int argc, char **argv)
-{       int msec = 0, trigger = 14;
+{   int msec = 0, trigger = 14;
 	clock_t previous = clock();
+	//int r_msec = 0, r_trigger = 10;
+	//clock_t r_previous = clock();
 	char	c;
 	//int *tx_frame;
 	term_puts("\nTerminal program - Embedded Real-Time Systems\n");
@@ -287,8 +289,8 @@ int main(int argc, char **argv)
 	struct js_event js;
 	
 	// input from joystick 
-
 /*
+
 	// non-blocking mode
 	 
 	fcntl(fd, F_SETFL, O_NONBLOCK);
@@ -326,8 +328,8 @@ int main(int argc, char **argv)
 		yaw = axis[2];
 		lift = axis[3];
 		}
-*/
-             
+
+          */   
 		lift = 15000;
 		roll = 0;
 		pitch = 0;
@@ -482,7 +484,7 @@ int main(int argc, char **argv)
 			tx_buffer[12]=(int8_t)(crc>>8);; 
 
 		
-	
+	//printf("tx=%d | \n",tx_buffer[1]);
 	for(int k=0; k<13; k++)
 	{
 			//tx_buffer[k]=0xFF;
@@ -501,12 +503,20 @@ int main(int argc, char **argv)
 		//printf("\n");
 	
 
-}
+    }
+		//clock_t r_current = clock();
+ 		//clock_t r_difference=r_current-r_previous;
+  		//r_msec = r_difference * 1000 / CLOCKS_PER_SEC;
+
+		//if ( r_msec > r_trigger )
+		//{
+			//r_previous=r_current;	
+
 	if ((c = rs232_getchar_nb()) != -1)  //possible cause of delay
 		if((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c>='0' && c<='9')||c=='\n')
 	term_putchar(c);
 		
-	
+		//}
 	}
 	
 	term_exitio();

@@ -30,7 +30,6 @@ printf("Panic Mode\n");
 //safe_mode();
 
 }
-
 void safe_mode()
 {
 //printf("Safe Mode\n");
