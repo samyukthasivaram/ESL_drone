@@ -251,12 +251,12 @@ int main(int argc, char **argv)
 	char	c;
 	//int *tx_frame;
 	term_puts("\nTerminal program - Embedded Real-Time Systems\n");
-	int fd;
+	/*int fd;
         #define JS_DEV	"/dev/input/js0"
 	if ((fd = open(JS_DEV, O_RDONLY)) < 0) {
 		perror("joystick error");
 		exit(1);
-	}
+	}*/
 
 	term_initio();
 	rs232_open();
@@ -289,7 +289,7 @@ int main(int argc, char **argv)
 	struct js_event js;
 	
 	// input from joystick 
-
+/*
 
 	// non-blocking mode
 	 
@@ -328,12 +328,13 @@ int main(int argc, char **argv)
 		yaw = axis[2];
 		lift = axis[3];
 		}
+		*/
 
-          /*  
+           
 		lift = 15000;
 		roll = 0;
 		pitch = 0;
-		yaw = 0;*/
+		yaw = 0;
                 //printf("t=%d|\n",js.time);
 			
 		//keyboard press 
