@@ -6,7 +6,7 @@
  * read more: http://mirror.datenwolf.net/serial/
  *------------------------------------------------------------
  */
-#include <time.h>
+
 #include <inttypes.h>
 #include <sys/ioctl.h>
 #include <sys/time.h>
@@ -22,20 +22,21 @@
 #include <sys/stat.h>
 #include "joystick.h"
 #include "crc.h"
+#include <termios.h>
+#include <ctype.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <stdio.h>
+#include <assert.h>
+#include <time.h>
+
+int serial_device = 0;
+int fd_RS232;
 
 #define NAME_LENGTH 128
 #define POLY 0x8005
-int charsWaiting (int fd)
-{
-  int count ;
 
-  if (ioctl (fd, FIONREAD, &count) == -1)
-  {
-    perror ("Something went wrong") ;
-    exit (EXIT_FAILURE) ;
-  }
-  return count ;
-}
+
 //CRC calculation without LUT
 int16_t calc_crc(int frame[])
 
@@ -56,27 +57,7 @@ int16_t calc_crc(int frame[])
     }
     return crc;
 }
-/*
-//CRC calculation with LUT
-unsigned cal_crc(unsigned int *ptr, unsigned int len) {
- unsigned int crc;
- unsigned char da;
- unsigned int crc_ta[16]={ 
- 0x0000,0x1021,0x2042,0x3063,0x4084,0x50a5,0x60c6,0x70e7,
-0x8108,0x9129,0xa14a,0xb16b,0xc18c,0xd1ad,0xe1ce,0xf1ef,
- };
- crc=0;
- while(len--!=0) {
- da=((uint)(crc/256))/16; 
- crc<<=4; 
- crc^=crc_ta[da^(*ptr/16)]; 
- da=((uint)(crc/256))/16; 
- crc<<=4; 
- crc^=crc_ta[da^(*ptr&0x0f)];
- ptr++;
- }
- return(crc);
-}*/
+
 
 /*------------------------------------------------------------
  * console I/O
@@ -138,16 +119,7 @@ int	term_getchar()
  * 115,200 baud
  *------------------------------------------------------------
  */
-#include <termios.h>
-#include <ctype.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <stdio.h>
-#include <assert.h>
-#include <time.h>
 
-int serial_device = 0;
-int fd_RS232;
 
 void rs232_open(void)
 {
@@ -179,7 +151,7 @@ void rs232_open(void)
 	cfsetispeed(&tty, B115200);
 
 	tty.c_cc[VMIN]  = 0;
-	tty.c_cc[VTIME] = 0; // added timeout   <if 1 adds delay>
+	tty.c_cc[VTIME] = 0; // added timeout   <if 1 adds 100ms delay>
 
 	tty.c_iflag &= ~(IXON|IXOFF|IXANY);
 
@@ -244,13 +216,26 @@ int 	rs232_putchar(char c)
  *----------------------------------------------------------------
  */
 int main(int argc, char **argv)
-{   int msec = 0, trigger = 14;
+{      
+	char c;
+	static int8_t mode = 0;
+	int16_t roll=0, pitch=0, yaw=0,lift=0;
+	int	axis[6];
+	int	button[12];
+	int tx_buffer[13];
+	struct js_event js;
+	struct termios options;
+	int8_t start=0xFF; 
+	int8_t keyboard=0xF0;
+	int16_t crc=0x0000;
+	int flag_mode = 0;
+	int msec = 0, trigger = 14;
+	int r_msec = 0, r_trigger = 7;
+	clock_t r_previous = clock();
 	clock_t previous = clock();
-	//int r_msec = 0, r_trigger = 10;
-	//clock_t r_previous = clock();
-	char	c;
-	//int *tx_frame;
 	term_puts("\nTerminal program - Embedded Real-Time Systems\n");
+	term_puts("Type ^C to exit\n");
+
 	/*int fd;
         #define JS_DEV	"/dev/input/js0"
 	if ((fd = open(JS_DEV, O_RDONLY)) < 0) {
@@ -261,8 +246,6 @@ int main(int argc, char **argv)
 	term_initio();
 	rs232_open();
 
-	term_puts("Type ^C to exit\n");
-
 	/* discard any incoming text
 	 */
 	while ((c = rs232_getchar_nb()) != -1)
@@ -270,29 +253,21 @@ int main(int argc, char **argv)
 
 	/* send & receive
 	 */
+
+		lift = -32767;
+		roll = -32767;
+		pitch = -32767;
+		yaw = -32767;
 	for (;;)
-	{
-	int16_t roll=0, pitch=0, yaw=0,lift=0;
-	int abort;
-	//int8_t temp_1,temp_2;
-	int flag_mode = 0;
-	static int8_t mode = 0;
-	int8_t start=0xFF; 
-	uint8_t c=0;
-	struct termios options;
-	int count=0;
-	int8_t keyboard=0xF0;
-	int	axis[6];
-	int	button[12];
-	int tx_buffer[13];
-	int16_t crc=0x0000;
-	struct js_event js;
-	
+	{	
+	flag_mode = 0;		
+	uint8_t key_press=0;	
+	keyboard=0xF0;
+	uint8_t c = 0;
 	// input from joystick 
-/*
 
 	// non-blocking mode
-	 
+/*	 
 	fcntl(fd, F_SETFL, O_NONBLOCK);
 		
 			unsigned int	t, i;
@@ -323,40 +298,41 @@ int main(int argc, char **argv)
 			}	
 		else 
 		{
-		pitch = axis[0];
-		roll = axis[1];
+		roll = axis[0];
+		pitch = axis[1];
 		yaw = axis[2];
 		lift = axis[3];
 		}
+*/
+             
+		
 
-          */   
-		lift = 15000;
-		roll = 0;
-		pitch = 0;
-		yaw = 0;
-                //printf("t=%d|\n",js.time);
-			
+        //printf("%d|%d|%d|%d|\t\n",pitch,roll,yaw,lift);
+		clock_t current = clock();
+ 		clock_t difference=current-previous;
+  		msec = difference * 1000 / CLOCKS_PER_SEC;
+
+		if ( msec > trigger )
+		{
+			previous=current;
+
+
+	
 		//keyboard press 
 		if(flag_mode!=1) // does not take input from the keyboard if aborted in the joystick
-		{		
-			/*tcgetattr (fileno (stdin), &options) ;
-			cfmakeraw (&options) ;	// Note - also affects output
-			tcsetattr (fileno (stdin), TCSANOW, &options) ;
-			count = charsWaiting (fileno (stdin)) ;
-			c=getchar();*/
-			
+		{				
 				int temp[3];
 				for(int i=0; i<3; i++)
 				{temp[i]= getchar ();
 				//printf("temp[%d]=%d \t",i,temp[i]);
 				}
 				if(temp[0]== 0x1B && (temp[1])== 0x5B)
-					c = temp[2];
+					key_press = temp[2];
 				else 
-					c = temp[0];
+					key_press = temp[0];
 			        //printf("c=%d\n",c);
 				
-			switch (c)
+			switch (key_press)
 			{
 				case 0x30:
 
@@ -386,7 +362,7 @@ int main(int argc, char **argv)
 				case 0x38:
 					mode = 8;
 				break;
-				case 0x1B:
+				case 0x1B://ecs
 					mode = 1;
 				break;
 				case 0x61: //a
@@ -441,15 +417,11 @@ int main(int argc, char **argv)
 		{
 			keyboard = 0xF0;
 		}	
-			//printf("mode =%d |KEYBOARD=%d \t",mode,keyboard);
-			// frame update
-		clock_t current = clock();
- 		clock_t difference=current-previous;
-  		msec = difference * 1000 / CLOCKS_PER_SEC;
 
-		if ( msec > trigger )
-		{
-			previous=current;	
+		
+			//printf("mode =%d |KEYBOARD=%d \t\n",mode,keyboard);
+			// frame update
+			
 			tx_buffer[0]= start;
 			tx_buffer[1]= mode;
 			tx_buffer[2]= (int8_t)lift;
@@ -460,65 +432,45 @@ int main(int argc, char **argv)
 			tx_buffer[7]= (int8_t)(pitch>>8);
 			tx_buffer[8]= (int8_t)yaw;
 			tx_buffer[9]= (int8_t)(yaw>>8);
-			tx_buffer[10]= keyboard;
+			tx_buffer[10]= keyboard;			
 			
-			/*tx_buffer[0]= start;
-			tx_buffer[1]= 85;
-			tx_buffer[2]= 20;
-			tx_buffer[3]= 21;
-			tx_buffer[4]= 22;
-			tx_buffer[5]= 23;
-			tx_buffer[6]= 24;
-			tx_buffer[7]= 25;
-			tx_buffer[8]= 26;
-			tx_buffer[9]= 27;
-			tx_buffer[10]=28;*/
 			//update crc
 			crc=calc_crc(tx_buffer);      //calculate crc without LUT
-			//crc=cal_crc(&tx_buffer,10);      //with LUT
-			//crc=0xFFFF;
-			//printf("crc=%d\t",crc);
-			//temp_1= (uint8_t)crc;
-			//temp_2=(uint8_t)(crc>>8); 
 			tx_buffer[11]= (int8_t)crc;
 			tx_buffer[12]=(int8_t)(crc>>8);; 
 
 		
-	//printf("tx=%d | \n",tx_buffer[1]);
-	for(int k=0; k<13; k++)
-	{
-			//tx_buffer[k]=0xFF;
-			rs232_putchar(tx_buffer[k]);//usleep(10);
+	
+		for(int k=0; k<13; k++)
+		{
+			rs232_putchar(tx_buffer[k]);
 			//printf("tx[%d]=%d | \t ",k,tx_buffer[k]);
+		}
+
+
+		lift += 1000;
+		roll+= 1000;
+		pitch+=1000;
+		yaw+=1000;
+
+				
+
 	}
-	
 
-	//for(int kk=0; kk<22; kk++)
-	//{
-		
-			//{
-				//printf("%d | ", c);
-			//}
-	//}
-		//printf("\n");
-	
+		clock_t r_current = clock();
+ 		clock_t r_difference=r_current-r_previous;
+  		r_msec = r_difference * 1000 / CLOCKS_PER_SEC;
 
-    }
-		//clock_t r_current = clock();
- 		//clock_t r_difference=r_current-r_previous;
-  		//r_msec = r_difference * 1000 / CLOCKS_PER_SEC;
-
-		//if ( r_msec > r_trigger )
-		//{
-			//r_previous=r_current;	
-
+		if ( r_msec > r_trigger )
+		{
+			r_previous=r_current;	
 	if ((c = rs232_getchar_nb()) != -1)  //possible cause of delay
-		if((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c>='0' && c<='9')||c=='\n')
-	term_putchar(c);
+	//if((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c>='0' && c<='9')||c=='\n'||c=='|'||c==' '||c=='-')
+    term_putchar(c);
+		}
 		
-		//}
 	}
-	
+
 	term_exitio();
 	rs232_close();
 	term_puts("\n<exit>\n");

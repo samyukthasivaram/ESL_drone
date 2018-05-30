@@ -32,12 +32,13 @@ bool demo_done;
 void manual_mode_sqrt();
 void safe_mode();
 void panicmode();
+void motor_control(int16_t t_lift, int16_t t_roll,int16_t t_pitch, int16_t t_yaw);
 //void callibration_mode();
 int16_t roll,pitch,yaw,lift;
 int16_t rollup,pitchup,yawup,liftup,rolldown,pitchdown,yawdown,liftdown;
 
 int8_t keyboard,mode,prev_mode;
-// int16_t p = 10;
+int8_t p_yaw;
 // Control
 int16_t motor[4],ae[4];
 void run_filters_and_control();

@@ -91,11 +91,12 @@ int main(void)
 	baro_init();
 	spi_flash_init();
 	ble_init();
+
 	static int state_mode=0;
 	uint32_t counter = 0;
 	demo_done = false;
 	prev_mode=0;
-	int trigger = 100000;
+	int trigger = 300000;
 	uint32_t previous = get_time_us();
 	
 
@@ -157,7 +158,7 @@ int main(void)
 
 	if ( difference > trigger )
     {   previous=current;
-    //printf("man=%d|%d|%d|%d|lift=%d|roll=%d|pitch=%d|yaw=%d|\n",ae[0],ae[1],ae[2],ae[3],lift,roll,pitch,yaw);
+   printf("%d|%d|%d|%d|lift=%d|roll=%d|pitch=%d|yaw=%d|\n",ae[0],ae[1],ae[2],ae[3],lift,roll,pitch,yaw);
 	//printf("%6d %6d %6d | \n", sp, sq, sr);
 
 	

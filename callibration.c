@@ -5,10 +5,7 @@
 
 void callibration_mode()
 {
-	ae[0] = 0;
-	ae[1] = 0;
-	ae[2] = 0;
-	ae[3] = 0;
+	safe_mode();
     printf("callibrating");
 	bool flag_init = check_timer_flag();
 	int i = 0;
