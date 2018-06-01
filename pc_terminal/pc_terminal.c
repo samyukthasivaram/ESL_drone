@@ -1,0 +1,477 @@
+/*------------------------------------------------------------
+ * Simple pc terminal in C
+ *
+ * Arjan J.C. van Gemund (+ mods by Ioannis Protonotarios)
+ *
+ * read more: http://mirror.datenwolf.net/serial/
+ *------------------------------------------------------------
+ */
+
+#include <inttypes.h>
+#include <sys/ioctl.h>
+#include <sys/time.h>
+#include <sys/types.h>
+#include <stdlib.h>
+#include <fcntl.h>
+#include <stdint.h>
+#include <unistd.h>
+#include <stdio.h>
+#include <errno.h>
+#include <string.h>
+#include <termios.h>
+#include <sys/stat.h>
+#include "joystick.h"
+#include "crc.h"
+#include <termios.h>
+#include <ctype.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <stdio.h>
+#include <assert.h>
+#include <time.h>
+
+int serial_device = 0;
+int fd_RS232;
+
+#define NAME_LENGTH 128
+#define POLY 0x8005
+
+
+//CRC calculation without LUT
+int16_t calc_crc(int frame[])
+
+{
+    int16_t crc,byte;
+    crc = 0;
+    
+    for (int i=1; i< 11; i++)
+    {
+            byte=frame[i];
+            crc ^=byte<<8;
+	    for(int k=8;k>0;k--)
+		{if(crc & 0x8000)
+			crc^=POLY;
+		 crc=crc<<1;
+		}
+    
+    }
+    return crc;
+}
+
+
+/*------------------------------------------------------------
+ * console I/O
+ *------------------------------------------------------------
+ */
+struct termios 	savetty;
+
+void	term_initio()
+{
+	struct termios tty;
+
+	tcgetattr(0, &savetty);
+	tcgetattr(0, &tty);
+
+	tty.c_lflag &= ~(ECHO|ECHONL|ICANON|IEXTEN);
+	tty.c_cc[VTIME] = 0;
+	tty.c_cc[VMIN] = 0;
+
+	tcsetattr(0, TCSADRAIN, &tty);
+}
+
+void	term_exitio()
+{
+	tcsetattr(0, TCSADRAIN, &savetty);
+}
+
+void	term_puts(char *s)
+{
+	fprintf(stderr,"%s",s);
+}
+
+void	term_putchar(char c)
+{
+	putc(c,stderr);
+}
+
+int	term_getchar_nb()
+{
+        static unsigned char 	line [2];
+
+        if (read(0,line,1)) // note: destructive read
+        		return (int) line[0];
+
+        return -1;
+}
+
+int	term_getchar()
+{
+        int    c;
+
+        while ((c = term_getchar_nb()) == -1)
+                ;
+        return c;
+}
+
+/*------------------------------------------------------------
+ * Serial I/O
+ * 8 bits, 1 stopbit, no parity,
+ * 115,200 baud
+ *------------------------------------------------------------
+ */
+
+
+void rs232_open(void)
+{
+  	char 		*name;
+  	int 		result;
+  	struct termios	tty;
+
+       	fd_RS232 = open("/dev/ttyUSB0", O_RDWR | O_NOCTTY);  // Hardcode your serial port here, or request it as an argument at runtime
+
+	assert(fd_RS232>=0);
+
+  	result = isatty(fd_RS232);
+  	assert(result == 1);
+
+  	name = ttyname(fd_RS232);
+  	assert(name != 0);
+
+  	result = tcgetattr(fd_RS232, &tty);
+	assert(result == 0);
+
+	tty.c_iflag = IGNBRK; /* ignore break condition */
+	tty.c_oflag = 0;
+	tty.c_lflag = 0;
+
+	tty.c_cflag = (tty.c_cflag & ~CSIZE) | CS8; /* 8 bits-per-character */
+	tty.c_cflag |= CLOCAL | CREAD; /* Ignore model status + read input */
+
+	cfsetospeed(&tty, B115200);
+	cfsetispeed(&tty, B115200);
+
+	tty.c_cc[VMIN]  = 0;
+	tty.c_cc[VTIME] = 0; // added timeout   <if 1 adds 100ms delay>
+
+	tty.c_iflag &= ~(IXON|IXOFF|IXANY);
+
+	result = tcsetattr (fd_RS232, TCSANOW, &tty); /* non-canonical */
+
+	tcflush(fd_RS232, TCIOFLUSH); /* flush I/O buffer */
+}
+
+
+void 	rs232_close(void)
+{
+  	int 	result;
+
+  	result = close(fd_RS232);
+  	assert (result==0);
+}
+
+
+int	rs232_getchar_nb()
+{
+	int 		result;
+	unsigned char 	c;
+
+	result = read(fd_RS232, &c, 1);
+
+	if (result == 0)
+		return -1;
+
+	else
+	{
+		assert(result == 1);
+		return (int) c;
+	}
+}
+
+
+int 	rs232_getchar()
+{
+	int 	c;
+
+	while ((c = rs232_getchar_nb()) == -1)
+		;
+	return c;
+}
+
+
+int 	rs232_putchar(char c)
+{
+	int result;
+
+	do {
+		result = (int) write(fd_RS232, &c, 1);
+	} while (result == 0);
+
+	assert(result == 1);
+	return result;
+}
+
+
+/*----------------------------------------------------------------
+ * main -- execute terminal
+ *----------------------------------------------------------------
+ */
+int main(int argc, char **argv)
+{      
+	char c;
+	static int8_t mode = 0;
+	int16_t roll=0, pitch=0, yaw=0,lift=0;
+	int	axis[6];
+	int	button[12];
+	int tx_buffer[13];
+	struct js_event js;
+	struct termios options;
+	int8_t start=0xFF; 
+	int8_t keyboard=0xF0;
+	int16_t crc=0x0000;
+	int flag_mode = 0;
+	int msec = 0, trigger = 14;
+	int r_msec = 0, r_trigger = 4;
+	clock_t r_previous = clock();
+	clock_t previous = clock();
+	term_puts("\nTerminal program - Embedded Real-Time Systems\n");
+	term_puts("Type ^C to exit\n");
+
+	/*int fd;
+        #define JS_DEV	"/dev/input/js0"
+	if ((fd = open(JS_DEV, O_RDONLY)) < 0) {
+		perror("joystick error");
+		exit(1);
+	}*/
+
+	term_initio();
+	rs232_open();
+
+	/* discard any incoming text
+	 */
+	while ((c = rs232_getchar_nb()) != -1)
+		fputc(c,stderr);
+
+	/* send & receive
+	 */
+
+		lift = 32767;
+		roll = 0;
+		pitch = 0;
+		yaw = 0;
+	for (;;)
+	{	
+	flag_mode = 0;		
+	uint8_t key_press=0;	
+	keyboard=0xF0;
+	uint8_t c = 0;
+	// input from joystick 
+
+	// non-blocking mode
+/*	 
+	fcntl(fd, F_SETFL, O_NONBLOCK);
+		
+			unsigned int	t, i;
+	
+			while (read(fd, &js, sizeof(struct js_event)) == 
+		       			sizeof(struct js_event))  {
+
+			// register data
+			 
+			// fprintf(stderr,".");
+			switch(js.type & ~JS_EVENT_INIT) {
+				case JS_EVENT_BUTTON:
+					button[js.number] = js.value;
+					break;
+				case JS_EVENT_AXIS:
+					axis[js.number] = js.value;
+					break;
+			}
+		}
+		if (errno != EAGAIN) {
+			perror("\njs: error reading (EAGAIN)");
+			exit (1);
+		}		
+	
+		if(button[0]==1)
+			{mode= 1;
+			flag_mode = 1;
+			}	
+		else 
+		{
+		roll = axis[0];
+		pitch = axis[1];
+		yaw = axis[2];
+		lift = axis[3];
+		}
+*/
+             
+		
+
+        //printf("%d|%d|%d|%d|\t\n",pitch,roll,yaw,lift);
+		clock_t current = clock();
+ 		clock_t difference=current-previous;
+  		msec = difference * 1000 / CLOCKS_PER_SEC;
+
+		if ( msec > trigger )
+		{
+			previous=current;
+
+
+	
+		//keyboard press 
+		if(flag_mode!=1) // does not take input from the keyboard if aborted in the joystick
+		{				
+				int temp[3];
+				for(int i=0; i<3; i++)
+				{temp[i]= getchar ();
+				//printf("temp[%d]=%d \t",i,temp[i]);
+				}
+				if(temp[0]== 0x1B && (temp[1])== 0x5B)
+					key_press = temp[2];
+				else 
+					key_press = temp[0];
+			        //printf("c=%d\n",c);
+				
+			switch (key_press)
+			{
+				case 0x30:
+
+					mode = 0;
+				break;
+				case 0x31:
+					mode = 1;
+				break;
+				case 0x32:
+					mode = 2;
+				break;
+				case 0x33:
+					mode = 3;
+				break;
+				case 0x34:
+					mode = 4;
+				break;
+				case 0x35:
+					mode = 5;
+				break;
+				case 0x36:
+					mode = 6;
+				break;
+				case 0x37:
+					mode = 7;
+				break;
+				case 0x38:
+					mode = 8;
+				break;
+				case 0x1B://ecs
+					mode = 1;
+				break;
+				case 0x61: //a
+					keyboard = 0x00;
+				break;
+				case 0x7A: //z
+					keyboard = 0x01;
+				break;
+				case 0x44: //left arrow
+					keyboard = 0x02;
+				break;
+				case 0x43: // right arrow
+					keyboard = 0x03;
+				break;
+				case 0x41: //up arrow
+					keyboard = 0x04;
+				break;
+				case 0x42: // down arrow
+					keyboard = 0x05;
+				break;
+				case 0x71: //q
+					keyboard = 0x06;
+				break;
+				case 0x77: // w
+					keyboard = 0x07;
+				break;
+				case 0x75:  //u
+					keyboard = 0x08;
+				break;
+				case 0x6A: // j
+					keyboard = 0x09;
+				break;
+				case 0x69: //i
+					keyboard = 0x0A;
+				break;
+				case 0x6B: //k
+					keyboard = 0x0B;
+				break;
+				case 0x6F: //o
+					keyboard = 0x0C;
+				break;
+				case 0x6C: //l
+					keyboard = 0x0D;
+				break;
+				default:
+					
+					keyboard = 0xF0;
+			}
+										
+		}
+		else
+		{
+			keyboard = 0xF0;
+		}	
+
+		
+			//printf("mode =%d |KEYBOARD=%d \t\n",mode,keyboard);
+			// frame update
+			
+			tx_buffer[0]= start;
+			tx_buffer[1]= mode;
+			tx_buffer[2]= (int8_t)lift;
+			tx_buffer[3]= (int8_t)(lift>>8);
+			tx_buffer[4]= (int8_t)roll;
+			tx_buffer[5]= (int8_t)(roll>>8);
+			tx_buffer[6]= (int8_t)pitch;
+			tx_buffer[7]= (int8_t)(pitch>>8);
+			tx_buffer[8]= (int8_t)yaw;
+			tx_buffer[9]= (int8_t)(yaw>>8);
+			tx_buffer[10]= keyboard;			
+			
+			//update crc
+			crc=calc_crc(tx_buffer);      //calculate crc without LUT
+			tx_buffer[11]= (int8_t)crc;
+			tx_buffer[12]=(int8_t)(crc>>8);; 
+			
+		for(int k=0; k<13; k++)
+		{
+			rs232_putchar(tx_buffer[k]);
+			//printf("tx[%d]=%d | \t ",k,tx_buffer[k]);
+		}
+
+
+		/*lift += 1000;
+		roll+= 1000;
+		pitch+=1000;
+		yaw+=1000;*/
+
+				
+
+	}
+
+		clock_t r_current = clock();
+ 		clock_t r_difference=r_current-r_previous;
+  		r_msec = r_difference * 1000 / CLOCKS_PER_SEC;
+
+		if ( r_msec > r_trigger )
+		{
+			r_previous=r_current;	
+	if ((c = rs232_getchar_nb()) != -1)  //possible cause of delay
+	//if((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c>='0' && c<='9')||c=='\n'||c=='|'||c==' '||c=='-')
+    term_putchar(c);
+		}
+		
+	}
+
+	term_exitio();
+	rs232_close();
+	term_puts("\n<exit>\n");
+
+	return 0;
+}
