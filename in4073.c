@@ -24,7 +24,7 @@ void process_key(uint8_t c)
 {
 	switch (c)
 	{
-		case 0://lift up
+		/*case 0://lift up
 			lift+=1;
 			
 			break;
@@ -49,7 +49,7 @@ void process_key(uint8_t c)
 			break;
 		case 7://yaw ccw
 			yaw-=1;
-			break;
+			break;*/
 		case 8: p_yaw+=1;break;
 		case 9: p_yaw-=1;break;
 		case 10:P1+=1;break;
@@ -94,13 +94,14 @@ int main(void)
 	int trigger = 300000;
 	uint32_t previous = get_time_us();
 	p_yaw=10;P1=10;P2=10;packet_drop=0;rec_counter=0;
+	lift_key=0;roll_key=0;pitch_key=0;yaw_key=0;
 		
 
 	while (!demo_done)
 	
 	{	
 		rs232_read();
-		//process_key(keyboard);
+		process_key(keyboard);
 
 		if(keyboard!=0xF0) keyboard=0xF0;
 
@@ -158,7 +159,7 @@ int main(void)
 	if ( difference > trigger )
     {   previous=current;
    printf("%d|%d|%d|%d|lift=%d|roll=%d|pitch=%d|yaw=%d|\n",ae[0],ae[1],ae[2],ae[3],lift,roll,pitch,yaw);
-   //printf("mode=%d\n",mode);
+   printf("lift_key=%d\n",lift_key);
 	//printf("%6d %6d %6d | \n", sp, sq, sr);
 	//printf("cal=%6d |%6d| %6d |%6d| %6d| %6d|\n ",sp_c,sq_c,sr_c,sax_c,say_c,saz_c);
 	//printf("packedrop=%d",packet_drop);

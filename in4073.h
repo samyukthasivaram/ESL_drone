@@ -43,8 +43,8 @@ uint8_t p_yaw,P1,P2;
 	int16_t sp_c;
 	int16_t sq_c;
 	int16_t sr_c;
-	int16_t phi_c,theta_c,psi_c;
-int16_t roll,pitch,yaw,lift;
+	int16_t phi_c,theta_c,psi_c; 
+int16_t roll,pitch,yaw,lift,lift_key,roll_key,pitch_key,yaw_key;
 int16_t rollup,pitchup,yawup,liftup,rolldown,pitchdown,yawdown,liftdown;
 
 int8_t keyboard,mode,prev_mode;

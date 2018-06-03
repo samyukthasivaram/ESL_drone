@@ -189,12 +189,6 @@ void store_data(int p[DataSize])
 		case 7://yaw ccw
 			yaw_key-=1;
 			break;
-		case 8: p_yaw+=1;break;
-		case 9: p_yaw-=1;break;
-		case 10:P1+=1;break;
-		case 11:P1-=1;break;
-		case 12:P2+=1;break;
-		case 13:P2-=1;break;
 	}
 	
 	lift = ((temp_lift+lift_key)>>6)+512;
@@ -204,6 +198,7 @@ void store_data(int p[DataSize])
 	
 	//printf("man=%d|%d|%d|%d|lift=%d|roll=%d|pitch=%d|yaw=%d|\n",temp_lift, temp_roll, temp_pitch, temp_yaw,lift,roll,pitch,yaw);
 	//printf("mode=%d|key=%d\n",mode,keyboard);
+	//printf("lift_key=%d\n",lift_key);
 
 }
 
