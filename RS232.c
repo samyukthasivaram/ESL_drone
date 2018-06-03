@@ -63,9 +63,10 @@ void rs232_read()
 	static int state = 0;
 	int8_t data = 0;
 	int i=0,j = 0;	
+
 		
 		if(rx_queue.count>0)
-	{		data = dequeue(&rx_queue); 
+	{		data = dequeue(&rx_queue); rec_counter=0;
 			//printf("%d| \n ",data);
 		switch(state)
 		{
@@ -97,7 +98,7 @@ void rs232_read()
 				check2 = data;
 				if(check_crc(check1,check2,frame))//check CRC <TO DO>
 				{
-					state = 0;
+					state = 0;packet_drop=0;
 					store_data(frame);
 				}
 				else    //if CRC is wrong check for start byte to start over
@@ -114,11 +115,11 @@ void rs232_read()
 						state = 1;
 					}
 					else
-					{	
+					{	int crcflag=0;
 						for(i=0; i<10; i++)  
 						{
 							if(frame[i] == StartByte)
-							{
+							{	crcflag=1; 
 								int k=0;
 								for(j=i+1; j<10; j++)
 									rx_wrong[k++] = frame[j];
@@ -131,7 +132,11 @@ void rs232_read()
 							else	state = 0;
 							break;
 						}
+					if(crcflag==0) packet_drop++;
+
 					}
+
+
 				}
 
 				break;
@@ -140,6 +145,7 @@ void rs232_read()
 					break;
 		}
 	}
+	else rec_counter++;      //to check continuous communication
 	
 }
 

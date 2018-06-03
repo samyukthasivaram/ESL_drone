@@ -25,42 +25,30 @@ void process_key(uint8_t c)
 	switch (c)
 	{
 		case 0://lift up
-			ae[0] += 10;
-			ae[1] += 10;
-			ae[2] += 10;
-			ae[3] += 10;
+			lift+=1;
 			
 			break;
 		case 1://lift down
-			ae[0] -= 10;
-			ae[1] -= 10;
-			ae[2] -= 10;
-			ae[3] -= 10;
+			lift-=1;
 			
 			break;
 		case 2://roll up
-			ae[1] += 10;
+			roll+=1;
 			break;
 		case 3://roll down
-			ae[1] -= 10;
-			if (ae[1] < 0) ae[1] = 0;
+		roll-=1;
 			break;
 		case 4://pitch down
-			ae[2] += 10;
+			pitch-=1;
 			break;
 		case 5://pitch up
-			ae[2] -= 10;
-			if (ae[2] < 0) ae[2] = 0;
+		pitch+=1;
 			break;
 		case 6:// yaw clockwise
-			ae[0] += 10;
-			ae[2] += 10;
+		yaw+=1;
 			break;
 		case 7://yaw ccw
-			ae[1]-=10;
-			ae[3] -= 10;
-			if (ae[3] < 0) ae[3] = 0;
-			if (ae[1] < 0) ae[1] = 0;
+			yaw-=1;
 			break;
 		case 8: p_yaw+=1;break;
 		case 9: p_yaw-=1;break;
@@ -99,13 +87,13 @@ int main(void)
 	spi_flash_init();
 	ble_init();
 	keyboard=0xF0;
-	static int state_mode=0,panic_flag=0;
+	static int state_mode=0,panic_flag=0,calib_flag=0;
 	uint32_t counter = 0;
 	demo_done = false;
 	prev_mode=0;
 	int trigger = 300000;
 	uint32_t previous = get_time_us();
-	p_yaw=10;P1=10;P2=10;
+	p_yaw=10;P1=10;P2=10;packet_drop=0;rec_counter=0;
 		
 
 	while (!demo_done)
@@ -121,11 +109,11 @@ int main(void)
 			 safe_mode(); 
 			 //if(roll!=0||pitch!=0||yaw!=0)
 	         //{printf("Warning: Illegal Initial conditions");
-			  //state_mode=0;}
+			 //state_mode=0;}
 			 //if (bat_volt<1100)
 			 //{printf("Low battery");
 			 //state_mode=0;}
-			 if(mode==0||((mode==1)&&(panic_flag==1)))
+			 if(mode==0||((mode==1)&&(panic_flag==1))||(calib_flag==1 && mode==3))
 			 state_mode=0;
 			 else if(mode==1&&panic_flag==0)
 			 demo_done=true;
@@ -134,11 +122,12 @@ int main(void)
 			 else {printf("invalid mode");state_mode=0;}
 			 break;
 	 case 1: if(prev_mode==mode)
-	 		{panic_flag=0;
+	 		{panic_flag=0;calib_flag=0;
 	         switch(mode)
 	 			{case 2: manual_mode_sqrt();
 						break;
 		  		case 3:  callibration_mode();
+				  			state_mode=0;calib_flag=1;
 						break;
 				case 4: yaw_control();
 						break;
@@ -172,7 +161,7 @@ int main(void)
    //printf("mode=%d\n",mode);
 	//printf("%6d %6d %6d | \n", sp, sq, sr);
 	//printf("cal=%6d |%6d| %6d |%6d| %6d| %6d|\n ",sp_c,sq_c,sr_c,sax_c,say_c,saz_c);
-	
+	//printf("packedrop=%d",packet_drop);
 	
 	}
 	  if (check_timer_flag()) 
@@ -182,7 +171,6 @@ int main(void)
 			adc_request_sample();
                   	
 			//read_baro(); 
-
 			/*printf("%10ld | ", get_time_us());
 			printf("%3d %3d %3d %3d | ",ae[0],ae[1],ae[2],ae[3]);
 			printf("%6d %6d %6d | ", phi, theta, psi);
@@ -198,6 +186,9 @@ int main(void)
 			get_dmp_data();//bat_chk();
 			run_filters_and_control();
 		}
+		if(packet_drop>100||rec_counter>1000) 
+		{demo_done=true;
+		 printf("packet dropped=%d,reccount=%d",packet_drop,rec_counter);}
 //rs232_write();
 	}	
 

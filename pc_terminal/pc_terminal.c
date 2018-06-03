@@ -437,7 +437,7 @@ int main(int argc, char **argv)
 			//update crc
 			crc=calc_crc(tx_buffer);      //calculate crc without LUT
 			tx_buffer[11]= (int8_t)crc;
-			tx_buffer[12]=(int8_t)(crc>>8);; 
+			tx_buffer[12]=(int8_t)(crc>>8);
 			
 		for(int k=0; k<13; k++)
 		{
@@ -466,7 +466,7 @@ int main(int argc, char **argv)
 	//if((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c>='0' && c<='9')||c=='\n'||c=='|'||c==' '||c=='-')
     term_putchar(c);
 		}
-		
+	
 	}
 
 	term_exitio();

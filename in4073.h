@@ -29,6 +29,7 @@
 #define INT_PIN		5
 
 bool demo_done;
+int packet_drop,rec_counter;
 void manual_mode_sqrt();
 void safe_mode();
 void panicmode();
@@ -42,6 +43,7 @@ uint8_t p_yaw,P1,P2;
 	int16_t sp_c;
 	int16_t sq_c;
 	int16_t sr_c;
+	int16_t phi_c,theta_c,psi_c;
 int16_t roll,pitch,yaw,lift;
 int16_t rollup,pitchup,yawup,liftup,rolldown,pitchdown,yawdown,liftdown;
 
