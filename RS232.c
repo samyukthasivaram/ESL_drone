@@ -161,10 +161,40 @@ void store_data(int p[DataSize])
 	temp_yaw = (p[8]<<8)+p[7];	
 	keyboard = p[9];
 
-	lift = (temp_lift>>6)+512;
-	roll = (temp_roll>>6);
-	pitch = (temp_pitch>>6);
-	yaw = (temp_yaw>>6);
+	switch (keyboard)
+	{
+		case 0://lift up
+			lift_key+=1;
+			
+			break;
+		case 1://lift down
+			lift_key-=1;
+			
+			break;
+		case 2://roll up
+			roll_key+=1;
+			break;
+		case 3://roll down
+		roll_key-=1;
+			break;
+		case 4://pitch down
+			pitch_key-=1;
+			break;
+		case 5://pitch up
+		pitch_key+=1;
+			break;
+		case 6:// yaw clockwise
+		yaw_key+=1;
+			break;
+		case 7://yaw ccw
+			yaw_key-=1;
+			break;
+	}
+	
+	lift = ((temp_lift+lift_key)>>6)+512;
+	roll = ((temp_roll+roll_key)>>6);
+	pitch = ((temp_pitch+pitch_key)>>6);
+	yaw = ((temp_yaw+yaw_key)>>6);
 	
 	//printf("man=%d|%d|%d|%d|lift=%d|roll=%d|pitch=%d|yaw=%d|\n",temp_lift, temp_roll, temp_pitch, temp_yaw,lift,roll,pitch,yaw);
 	//printf("mode=%d|key=%d\n",mode,keyboard);
