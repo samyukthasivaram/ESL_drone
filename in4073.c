@@ -100,7 +100,7 @@ int main(void)
 	
 	{	
 		rs232_read();
-		process_key(keyboard);
+		//process_key(keyboard);
 
 		if(keyboard!=0xF0) keyboard=0xF0;
 
