@@ -255,9 +255,9 @@ int main(int argc, char **argv)
 	 */
 
 		lift = 32767;
-		roll = 0;
-		pitch = 0;
-		yaw = 0;
+		roll = 32767;
+		pitch = 32767;
+		yaw = 32767;
 	for (;;)
 	{	
 	flag_mode = 0;		
@@ -304,8 +304,11 @@ int main(int argc, char **argv)
 		lift = axis[3];
 		}
 */
-             
-		
+       /*   for(lift=-32767;lift<32767;lift+=10000)
+		  	   for(roll=-32767;roll<32767;lift+=10000)
+			       for(pitch=-32767;pitch<32767;pitch+=10000)
+			  		for(yaw=-32767;yaw<32767;yaw+=10000)
+		{*/
 
         //printf("%d|%d|%d|%d|\t\n",pitch,roll,yaw,lift);
 		clock_t current = clock();
@@ -468,7 +471,7 @@ int main(int argc, char **argv)
 		}
 	
 	}
-
+					
 	term_exitio();
 	rs232_close();
 	term_puts("\n<exit>\n");

@@ -46,6 +46,7 @@ $(abspath ./safety.c) \
 $(abspath ./yaw_control.c) \
 $(abspath ./manual_mode.c) \
 $(abspath ./callibration.c) \
+$(abspath ./data_logging.c) \
 $(abspath ./drivers/gpio.c) \
 $(abspath ./drivers/timers.c) \
 $(abspath ./drivers/uart.c) \

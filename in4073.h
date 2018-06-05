@@ -122,6 +122,10 @@ bool flash_write_bytes(uint32_t address, uint8_t *data, uint32_t count);
 bool flash_read_byte(uint32_t address, uint8_t *buffer);
 bool flash_read_bytes(uint32_t address, uint8_t *buffer, uint32_t count);
 
+void save_data_in_flash();
+void update_data();
+uint8_t data_buffer[51];
+
 // BLE
 queue ble_rx_queue;
 queue ble_tx_queue;

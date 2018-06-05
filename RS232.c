@@ -163,32 +163,44 @@ void store_data(int p[DataSize])
 
 	switch (keyboard)
 	{
-		case 0://lift up
+		case 0://lift up 'a'
 			lift_key+=1;
 			
 			break;
-		case 1://lift down
+		case 1://lift down 'z'
 			lift_key-=1;
 			
 			break;
-		case 2://roll up
+		case 2://roll up '<'
 			roll_key+=1;
 			break;
-		case 3://roll down
+		case 3://roll down '>'
 		roll_key-=1;
 			break;
-		case 4://pitch down
+		case 4://pitch down '^'
 			pitch_key-=1;
 			break;
-		case 5://pitch up
+		case 5://pitch up 'down arrow'
 		pitch_key+=1;
 			break;
-		case 6:// yaw clockwise
-		yaw_key+=1;
-			break;
-		case 7://yaw ccw
-			yaw_key-=1;
-			break;
+		case 6:// yaw clockwise 'q'
+				yaw_key+=1;
+				break;
+		case 7://yaw ccw  'w'
+			    yaw_key-=1;
+				break;
+		case 8: p_yaw+=1;break; // 'u'
+		case 9: p_yaw-=1;       //'j'
+				if(p_yaw<1) p_yaw=1;
+				break;
+		case 10:P1+=1;break;   //'i'
+		case 11:P1-=1;			//'k'
+				if(P1<1) P1=1;
+				break;
+		case 12:P2+=1;break; //'o'
+		case 13:P2-=1;		//'l'
+				if(P2<1) P2=1;
+				break;
 	}
 	
 	lift = ((temp_lift+lift_key)>>6)+512;
