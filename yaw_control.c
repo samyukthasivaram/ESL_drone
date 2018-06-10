@@ -10,40 +10,53 @@
  *every time.
  */
 
-static int16_t p=10;	//initial value to be decided
+//static int16_t p=10;	//initial value to be decided
 static int16_t error = 0;
 
 void yaw_control()
 {
+int16_t yaw_roll=0,yaw_pitch=0,yaw_yaw=0,yaw_lift=0,yaw_sr;
+
+yaw_lift=lift;
+yaw_roll=roll;
+yaw_yaw=yaw;
+yaw_pitch=pitch;
 	
-if(keyboard==8) p++;
-else if(keyboard==9) p--;
-	//Does p has a range?
-	
-	//sr = get_sensor_data();
-	error = yaw - (700*sr);
-if(error>100)
-	yaw = p * error;
-	
-ae[0]=(int16_t) (-yaw - lift)/4 ;
-ae[2]= (int16_t)(-yaw - lift )/4;
-ae[1]= (int16_t)(yaw - lift )/4;
-ae[3]=(int16_t) (yaw - lift )/4;
+	yaw_sr=(sr>>6)-sr_c;
+	error = yaw - yaw_sr;
+	//if(error>100)
+	yaw_yaw = p_yaw * error;
 
 
-
- if (ae[0] < 100) ae[0] = 100; 
- if (ae[0] > 300) ae[0] = 300;
- if (ae[1] < 100) ae[1] = 100; 
- if (ae[1] > 300) ae[1] = 300;
- if (ae[2] < 100) ae[2] = 100; 
- if (ae[2] > 300) ae[2] = 300;
- if (ae[3] < 100) ae[3] = 100; 
- if (ae[3] > 300) ae[3] = 300;
- printf("m1=%d|m2=%d|",ae[0],ae[1]);
-printf("sr=%6d| y=%d|\n ", sr,yaw);	
+motor_control(yaw_lift,yaw_roll,yaw_pitch,yaw_yaw);
 
 }
 
+void full_control()
+{int16_t full_roll=0,full_pitch=0,full_yaw=0,full_lift=0,full_sr,full_sp,full_sq;
+ //int16_t error_yaw,error_pitch,error_roll;
+ int16_t error_yaw;
+full_lift=lift;
+full_roll=roll;
+full_yaw=yaw;
+full_pitch=pitch;
+	
+	full_sr=(sr>>6)-sr_c;
+	error_yaw = yaw - full_sr;
+
+	full_sp=(sp>>6)-sp_c;
+
+	full_sq=(sq>>6)-sq_c;
+
+	//if(error_yaw>100)
+	full_yaw = p_yaw * error_yaw;
+
+	
+	full_roll = (roll - ((phi>>6) - phi_c))*P1 - full_sp*P2;
+	full_pitch = (pitch - ((theta>>6) - theta_c) )*P1 + (full_sq)*P2;
+
+
+motor_control(full_lift,full_roll,full_pitch,full_yaw);
+}
  
 

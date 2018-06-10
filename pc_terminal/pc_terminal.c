@@ -22,20 +22,21 @@
 #include <sys/stat.h>
 #include "joystick.h"
 #include "crc.h"
+#include <termios.h>
+#include <ctype.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <stdio.h>
+#include <assert.h>
+#include <time.h>
+
+int serial_device = 0;
+int fd_RS232;
 
 #define NAME_LENGTH 128
 #define POLY 0x8005
-int charsWaiting (int fd)
-{
-  int count ;
 
-  if (ioctl (fd, FIONREAD, &count) == -1)
-  {
-    perror ("Something went wrong") ;
-    exit (EXIT_FAILURE) ;
-  }
-  return count ;
-}
+
 //CRC calculation without LUT
 int16_t calc_crc(int frame[])
 
@@ -118,16 +119,7 @@ int	term_getchar()
  * 115,200 baud
  *------------------------------------------------------------
  */
-#include <termios.h>
-#include <ctype.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <stdio.h>
-#include <assert.h>
-#include <time.h>
 
-int serial_device = 0;
-int fd_RS232;
 
 void rs232_open(void)
 {
@@ -224,20 +216,27 @@ int 	rs232_putchar(char c)
  *----------------------------------------------------------------
  */
 int main(int argc, char **argv)
-{       int16_t roll=0, pitch=0, yaw=0,lift=0;
-	int flag_mode = 0;
+{      
+	char c;
 	static int8_t mode = 0;
-	int8_t start=0xFF; 
-	uint8_t c=0;
-	struct termios options;
-	int8_t keyboard=0xF0;
+	int16_t roll=0, pitch=0, yaw=0,lift=0;
 	int	axis[6];
 	int	button[12];
 	int tx_buffer[13];
-	int16_t crc=0x0000;
 	struct js_event js;
+	struct termios options;
+	int8_t start=0xFF; 
+	int8_t keyboard=0xF0;
+	int16_t crc=0x0000;
+	int flag_mode = 0;
+	int msec = 0, trigger = 14;
+	int r_msec = 0, r_trigger = 4;
+	clock_t r_previous = clock();
+	clock_t previous = clock();
 	term_puts("\nTerminal program - Embedded Real-Time Systems\n");
-/*	int fd;
+	term_puts("Type ^C to exit\n");
+
+	/*int fd;
         #define JS_DEV	"/dev/input/js0"
 	if ((fd = open(JS_DEV, O_RDONLY)) < 0) {
 		perror("joystick error");
@@ -247,8 +246,6 @@ int main(int argc, char **argv)
 	term_initio();
 	rs232_open();
 
-	term_puts("Type ^C to exit\n");
-
 	/* discard any incoming text
 	 */
 	while ((c = rs232_getchar_nb()) != -1)
@@ -256,15 +253,21 @@ int main(int argc, char **argv)
 
 	/* send & receive
 	 */
-	for (;;)
-	{
-	
-	
-	/*// input from joystick 
 
+		lift = 32767;
+		roll = 32767;
+		pitch = 32767;
+		yaw = 32767;
+	for (;;)
+	{	
+	flag_mode = 0;		
+	uint8_t key_press=0;	
+	keyboard=0xF0;
+	uint8_t c = 0;
+	// input from joystick 
 
 	// non-blocking mode
-	 
+/*	 
 	fcntl(fd, F_SETFL, O_NONBLOCK);
 		
 			unsigned int	t, i;
@@ -290,41 +293,49 @@ int main(int argc, char **argv)
 		}		
 	
 		if(button[0]==1)
-			{mode= 0x09;
+			{mode= 1;
 			flag_mode = 1;
 			}	
 		else 
 		{
-		pitch = axis[0];
-		roll = axis[1];
+		roll = axis[0];
+		pitch = axis[1];
 		yaw = axis[2];
 		lift = axis[3];
 		}
 */
-           
+       /*   for(lift=-32767;lift<32767;lift+=10000)
+		  	   for(roll=-32767;roll<32767;lift+=10000)
+			       for(pitch=-32767;pitch<32767;pitch+=10000)
+			  		for(yaw=-32767;yaw<32767;yaw+=10000)
+		{*/
+
+        //printf("%d|%d|%d|%d|\t\n",pitch,roll,yaw,lift);
+		clock_t current = clock();
+ 		clock_t difference=current-previous;
+  		msec = difference * 1000 / CLOCKS_PER_SEC;
+
+		if ( msec > trigger )
+		{
+			previous=current;
 
 
-		lift = 30000;
-		roll = 0;
-		pitch = 0;
-		yaw = 0;
-                //printf("%d|%d|%d|%d|\t\n",pitch,roll,yaw,lift);
-			
+	
 		//keyboard press 
 		if(flag_mode!=1) // does not take input from the keyboard if aborted in the joystick
-		{		
-			
-			
+		{				
 				int temp[3];
 				for(int i=0; i<3; i++)
 				{temp[i]= getchar ();
+				//printf("temp[%d]=%d \t",i,temp[i]);
 				}
 				if(temp[0]== 0x1B && (temp[1])== 0x5B)
-					c = temp[2];
+					key_press = temp[2];
 				else 
-					c = temp[0];
+					key_press = temp[0];
+			        //printf("c=%d\n",c);
 				
-			switch (c)
+			switch (key_press)
 			{
 				case 0x30:
 
@@ -354,8 +365,8 @@ int main(int argc, char **argv)
 				case 0x38:
 					mode = 8;
 				break;
-				case 0x1B:
-					mode = 9;
+				case 0x1B://ecs
+					mode = 1;
 				break;
 				case 0x61: //a
 					keyboard = 0x00;
@@ -409,9 +420,11 @@ int main(int argc, char **argv)
 		{
 			keyboard = 0xF0;
 		}	
+
+		
+			//printf("mode =%d |KEYBOARD=%d \t\n",mode,keyboard);
 			// frame update
-			if(js.time%20==0)
-{
+			
 			tx_buffer[0]= start;
 			tx_buffer[1]= mode;
 			tx_buffer[2]= (int8_t)lift;
@@ -422,38 +435,46 @@ int main(int argc, char **argv)
 			tx_buffer[7]= (int8_t)(pitch>>8);
 			tx_buffer[8]= (int8_t)yaw;
 			tx_buffer[9]= (int8_t)(yaw>>8);
-			tx_buffer[10]= keyboard;
+			tx_buffer[10]= keyboard;			
 			
-			
+			//update crc
 			crc=calc_crc(tx_buffer);      //calculate crc without LUT
-		 
 			tx_buffer[11]= (int8_t)crc;
-			tx_buffer[12]=(int8_t)(crc>>8);; 
-
-		
-	
-	for(int k=0; k<13; k++)
-	{
+			tx_buffer[12]=(int8_t)(crc>>8);
 			
+		for(int k=0; k<13; k++)
+		{
 			rs232_putchar(tx_buffer[k]);
+			//printf("tx[%d]=%d | \t ",k,tx_buffer[k]);
+		}
+
+
+		/*lift += 1000;
+		roll+= 1000;
+		pitch+=1000;
+		yaw+=1000;*/
+
+				
+
+	}
+
+		clock_t r_current = clock();
+ 		clock_t r_difference=r_current-r_previous;
+  		r_msec = r_difference * 1000 / CLOCKS_PER_SEC;
+
+		if ( r_msec > r_trigger )
+		{
+			r_previous=r_current;	
+	if ((c = rs232_getchar_nb()) != -1)  //possible cause of delay
+	//if((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c>='0' && c<='9')||c=='\n'||c=='|'||c==' '||c=='-')
+    term_putchar(c);
+		}
 	
 	}
-	
-	//for(int kk=0; kk<23; kk++)
-	//{
-		if ((c = rs232_getchar_nb()) != -1)  //possible cause of delay
-			term_putchar(c);
-			//{
-				//printf("%d | ", c);
-			//}
-	//}
-		//printf("\n");
-	}}
-
+					
 	term_exitio();
 	rs232_close();
 	term_puts("\n<exit>\n");
 
 	return 0;
 }
-
