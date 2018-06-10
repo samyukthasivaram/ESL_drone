@@ -16,40 +16,10 @@
 #define DataSize 10
 #define POLY 0x8005
 
-static volatile bool read1 = false,write1 = false;
-
-void rs232_init(void)
-{
-	uart_init();
-	write1 = false;
-	read1 = false;
-}
-
 /*---------------------------------------------------------
  *Data format: | StartByte | Data | CRC1 | CRC2 | 14 bytes
   ---------------------------------------------------------
  */
-/*
-//CRC calculation with table
-uint16_t cal_crc(unsigned int *ptr, unsigned int len) {
- uint16_t crc;
- unsigned int da;
- static const unsigned int crc_ta[16]={ 
- 0x0000,0x1021,0x2042,0x3063,0x4084,0x50a5,0x60c6,0x70e7,
-0x8108,0x9129,0xa14a,0xb16b,0xc18c,0xd1ad,0xe1ce,0xf1ef,
- };
- crc=0;
- while(len--!=0) {
- da=((uint8_t)(crc/256))/16; 
- crc<<=4; 
- crc^=crc_ta[da^(*ptr/16)]; 
- da=((uint8_t)(crc/256))/16; 
- crc<<=4; 
- crc^=crc_ta[da^(*ptr&0x0f)];
- ptr++;
- }
- return(crc);
-} */
 
 //CRC calculation without table
 int16_t calc_crc(int frame[])
@@ -71,52 +41,44 @@ int16_t calc_crc(int frame[])
     }
     return crc;
 }
+
 bool check_crc(int8_t c1, int8_t c2, int q[])
 {
    int16_t w= calc_crc(q);
    int16_t new_c = ((c2<<8) & 0xFF00) | (c1 & 0x00FF);
-//printf("w=%d",w);
-//printf("new crc=%d|%d|%d\n",new_c,c1,c2);
   if (w==new_c)
-
      return true;
   else
     return false;
 }
+
 int frame[DataSize];
-uint8_t size=0;
 uint8_t count=0;
 int rx_wrong[10];
 int8_t StartByte=0xFF;
+static int8_t check1 = 0,check2 = 0;	//store CRC
+
 void rs232_read()
 {
 	static int state = 0;
 	int8_t data = 0;
-	int i=0,j = 0;
-	static int8_t check1 = 0,check2 = 0;	//store CRC
-	//uint16_t crc=0;
-	//queue *rx_buffer;
-	//int rx_wrong[13];	//store data when CRC result goes wrong <TO DO> 
-	//int p[DataSize];
-	
+	int i=0,j = 0;	
+
+		
 		if(rx_queue.count>0)
-	{		data = dequeue(&rx_queue); 
-			//printf("%d|  ",data);
+	{		data = dequeue(&rx_queue); rec_counter=0;
+			//printf("%d| \n ",data);
 		switch(state)
 		{
 			case 0:
-				//printf("CASE0");
 				if(data == StartByte)
 				{
-					read1 = true;
-					size=0;
 					state = 1;
 				}
 				else	state = 0;
 				break;
 				
 			case 1:
-				//printf("CASE1");
 				if(count >=DataSize)
 				{
 					check1 = data;
@@ -127,49 +89,37 @@ void rs232_read()
 				{
 					frame[count] = data;
 					count++;
-					//printf("count=%d \t \t \t \n",count);
 					state = 1;
 				}
 				break;
 			
 
 			case 2:
-				//printf("CASE2");
 				check2 = data;
-				//printf("check1=%d",check1);
 				if(check_crc(check1,check2,frame))//check CRC <TO DO>
 				{
-					//printf("CRC right");
-					read1 = false;
-					state = 0;
+					state = 0;packet_drop=0;
 					store_data(frame);
-					//usleep(100000);
 				}
 				else    //if CRC is wrong check for start byte to start over
 				{    
-
-					//printf("CRC wrong");
-
 					if(check1 == StartByte)
 					{
 						frame[0] = check2;
 						count = 1;
 						state = 1;
-						//printf("check1 == StartByte");
 					}
 					else if(check2 == StartByte)
 					{
 						count = 0;
 						state = 1;
-						//printf("check2 == StartByte");
 					}
 					else
-					{	
-						//printf("data == StartByte");
-						for(i=0; i<10; i++)  //DataLen=12 (?)
+					{	int crcflag=0;
+						for(i=0; i<10; i++)  
 						{
 							if(frame[i] == StartByte)
-							{
+							{	crcflag=1; 
 								int k=0;
 								for(j=i+1; j<10; j++)
 									rx_wrong[k++] = frame[j];
@@ -182,7 +132,11 @@ void rs232_read()
 							else	state = 0;
 							break;
 						}
+					if(crcflag==0) packet_drop++;
+
 					}
+
+
 				}
 
 				break;
@@ -191,10 +145,78 @@ void rs232_read()
 					break;
 		}
 	}
+	else rec_counter++;      //to check continuous communication
+	
 }
 
-transit frame - ae[0] | ae[1] | ae[2] | ae[3] | bat_volt | phi | theta | psi | sp | sq | sr
-void rs232_write()
+void store_data(int p[DataSize])
+{
+
+	int16_t temp_lift, temp_roll, temp_pitch, temp_yaw;
+
+	mode= p[0];	
+	temp_lift = (p[2]<<8)+p[1];
+	temp_roll = (p[4]<<8)+p[3];
+	temp_pitch = (p[6]<<8)+p[5];	
+	temp_yaw = (p[8]<<8)+p[7];	
+	keyboard = p[9];
+
+	switch (keyboard)
+	{
+		case 0://lift up 'a'
+			lift_key+=1;
+			
+			break;
+		case 1://lift down 'z'
+			lift_key-=1;
+			
+			break;
+		case 2://roll up '<'
+			roll_key+=1;
+			break;
+		case 3://roll down '>'
+		roll_key-=1;
+			break;
+		case 4://pitch down '^'
+			pitch_key-=1;
+			break;
+		case 5://pitch up 'down arrow'
+		pitch_key+=1;
+			break;
+		case 6:// yaw clockwise 'q'
+				yaw_key+=1;
+				break;
+		case 7://yaw ccw  'w'
+			    yaw_key-=1;
+				break;
+		case 8: p_yaw+=1;break; // 'u'
+		case 9: p_yaw-=1;       //'j'
+				if(p_yaw<1) p_yaw=1;
+				break;
+		case 10:P1+=1;break;   //'i'
+		case 11:P1-=1;			//'k'
+				if(P1<1) P1=1;
+				break;
+		case 12:P2+=1;break; //'o'
+		case 13:P2-=1;		//'l'
+				if(P2<1) P2=1;
+		case 14:read_from_flash();
+				break;
+	}
+	
+	lift = ((temp_lift+lift_key)>>6)+512;
+	roll = ((temp_roll+roll_key)>>6);
+	pitch = ((temp_pitch+pitch_key)>>6);
+	yaw = ((temp_yaw+yaw_key)>>6);
+	
+	//printf("man=%d|%d|%d|%d|lift=%d|roll=%d|pitch=%d|yaw=%d|\n",temp_lift, temp_roll, temp_pitch, temp_yaw,lift,roll,pitch,yaw);
+	//printf("mode=%d|key=%d\n",mode,keyboard);
+	//printf("lift_key=%d\n",lift_key);
+
+}
+
+//transit frame - ae[0] | ae[1] | ae[2] | ae[3] | bat_volt | phi | theta | psi | sp | sq | sr
+/*void rs232_write()
 {
 	int8_t tx_buff[22];
 	int16_t bat_volt_temp = bat_volt - 32767;
@@ -236,63 +258,9 @@ void rs232_write()
 	
 	
 }
-
-
-
-void store_data(int p[DataSize])
-{	//int16_t temp_1, temp_2;
-	//int16_t temp_3;
-for(int k=0; k<10; k++)
-	{
-			//tx_buffer[k]=0xFF;
-			//rs232_putchar(tx_buffer[k]);
-			//printf("tx_buffer[%d]=%d | ",k,p[k]);
-	}
-//if(mode!=p[0])
-printf("%d\n",mode);
-	mode= p[0];
-	
-	lift = (p[2]<<8)+p[1];
-
-	roll = (p[4]<<8)+p[3];
-	pitch = (p[6]<<8)+p[5];
-	
-	yaw = (p[8]<<8)+p[7];
-	
-	keyboard = p[9];
-
-
-/*yaw=(yaw+32000)/1000;
-lift=(lift+32000)/1000;
-roll=(roll+32000)/1000;
-pitch=(pitch+32000)/1000;*/
-
-//for(int ii=0;ii<DataSize;ii++) 
-//flag1=1;
-}
-
-/*
-void Data_logging(log l, int p[DataLen])
-{
-	if(fp == NULL)
-		return -1;
-	else
-	{
-		log.Mode = p[0];
-		log.Joystick[0] = p[1];
-		log.Joystick[1] = p[2];
-		log.Joystick[2] = p[3];
-		log.Joystick[3] = p[4];
-		log.Joystick[4] = p[5];
-		log.Joystick[5] = p[6];
-		log.Joystick[6] = p[7];
-		log.Joystick[7] = p[8];
-		log.Keyboard = p[9];
-		fprintf(fp, "%d      %d      ", mon_time_ms(), log.Mode);
-		for(i=0; i<DataLen; i++)
-			fprintf(fp, "%d ", log.Joystick[i]);
-		fprintf(fp, "%d      %d      %d      %d      %d\n", \
-			log.Keyboard, log.Actuator, log.Sensor, log.Sensor_processing_chain, log.controller);
-	}
-}
 */
+
+
+
+
+

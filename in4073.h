@@ -13,6 +13,7 @@
 
 #include <inttypes.h>
 #include <stdio.h>
+#include <time.h>
 #include "nrf_gpio.h"
 #include "nrf_delay.h"
 #include "inv_mpu.h"
@@ -28,12 +29,26 @@
 #define INT_PIN		5
 
 bool demo_done;
+int packet_drop,rec_counter;
 void manual_mode_sqrt();
-int16_t roll,pitch,yaw,lift;
+void safe_mode();
+void panicmode();
+void motor_control(int16_t t_lift, int16_t t_roll,int16_t t_pitch, int16_t t_yaw);
+void callibration_mode();
+void full_control();
+uint8_t p_yaw,P1,P2;
+	int16_t sax_c;
+	int16_t say_c;
+	int16_t saz_c;
+	int16_t sp_c;
+	int16_t sq_c;
+	int16_t sr_c;
+	int16_t phi_c,theta_c,psi_c; 
+int16_t roll,pitch,yaw,lift,lift_key,roll_key,pitch_key,yaw_key;
 int16_t rollup,pitchup,yawup,liftup,rolldown,pitchdown,yawdown,liftdown;
 
-int8_t keyboard,mode;
-// int16_t p = 10;
+int8_t keyboard,mode,prev_mode;
+//int8_t p_yaw;
 // Control
 int16_t motor[4],ae[4];
 void run_filters_and_control();
@@ -97,6 +112,7 @@ void baro_init(void);
 uint16_t bat_volt;
 void adc_init(void);
 void adc_request_sample(void);
+void bat_chk();
 
 // Flash
 bool spi_flash_init(void);
@@ -105,6 +121,11 @@ bool flash_write_byte(uint32_t address, uint8_t data);
 bool flash_write_bytes(uint32_t address, uint8_t *data, uint32_t count);
 bool flash_read_byte(uint32_t address, uint8_t *buffer);
 bool flash_read_bytes(uint32_t address, uint8_t *buffer, uint32_t count);
+
+void save_data_in_flash();
+void update_data();
+void read_from_flash();
+uint8_t data_buffer[51];
 
 // BLE
 queue ble_rx_queue;
