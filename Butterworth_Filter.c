@@ -2,10 +2,10 @@
  * Function: Low-pass Butterworth filter (10Hz)
  * 1st order and 2nd order
  * use matlab to caiculate according to fs and fc
- * sampling frequency fs= 1kHz
- * cut-off frequency fc= 700Hz
+ * sampling frequency fs= 500Hz
+ * cut-off frequency fc= 25Hz
  * sensor data is passed by a signed 16-bits integer
- * 16 bits, 8 bits fraction / 32 bits, 14 bits fraction(18+14) (?)
+ * 16 bits, 8 bits fraction
  * sr-yaw, r_bf -ouput of butterworth filter
  */
 
@@ -13,8 +13,8 @@
 #include <stdlib.h>
 #include "in4073.h"
 
-static float b[2] = {0, 0.2866};
-static float a[3] = {1.0000, -1.0728, 0.3716};
+static float b[3] = {0.0001832, -0.0002235, 0.0000403};
+static float a[3] = {1.0000, -2.0031, 1.0031};
 static float bz[2] = {0};
 static float az[3] = {0};
 static int16_t init[2] = {0};		// for 1st-order
@@ -51,17 +51,17 @@ void butterWorth_2ndOrder()
 	r_bf = y >> 8;
 }
 
-//32 bits, 14 bits fraction
+//16 bits, 8 bits fraction
 int mul(float x, float y)
 {
 	int result = 0;
 	result = x * y;
-	result = result >> 14;
+	result = result >> 8;
 	return result;
 }
 
 /*----------------------------------------------------------------
- * float2fix -- convert float to fixed point 18+14 bits
+ * float2fix -- convert float to fixed point 8+8 bits
  * Reference: fixed_order2_butterworth10.c
  *----------------------------------------------------------------
  */
@@ -69,6 +69,6 @@ int	float2fix(double x)
 {
 	int	y;
 
-	y = x * (1 << 14);
+	y = x * (1 << 8);
 	return y;
 }
