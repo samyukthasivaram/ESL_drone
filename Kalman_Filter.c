@@ -8,8 +8,8 @@
 #include "in4073.h"
 //iteration times
 #define C1 7
-#define C2 20
-#define P2PHI	
+#define C2 17
+#define P2PHI	0.023
 
 void kalmanFilter()
 {
@@ -38,4 +38,3 @@ void kalmanFilter()
 	q_kalman = estimate_q >> 8;
 	theta_kalman = estimate_theta >> 8;	
 } 
-
