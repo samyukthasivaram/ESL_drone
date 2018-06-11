@@ -22,13 +22,13 @@
  */
 
 //CRC calculation without table
-int16_t calc_crc(int frame[])
+int16_t calc_crc(int frame[],int count)
 
-{
+{	
     int16_t crc,byte;
     crc = 0;
     
-    for (int i=0; i< 10; i++)
+    for (int i=0; i< count; i++)
     {
             byte=frame[i];
             crc ^=byte<<8;
@@ -44,7 +44,7 @@ int16_t calc_crc(int frame[])
 
 bool check_crc(int8_t c1, int8_t c2, int q[])
 {
-   int16_t w= calc_crc(q);
+   int16_t w= calc_crc(q,10);
    int16_t new_c = ((c2<<8) & 0xFF00) | (c1 & 0x00FF);
   if (w==new_c)
      return true;
@@ -200,7 +200,8 @@ void store_data(int p[DataSize])
 		case 12:P2+=1;break; //'o'
 		case 13:P2-=1;		//'l'
 				if(P2<1) P2=1;
-		case 14:read_from_flash();
+		case 14:
+				flag_logging = 1;
 				break;
 	}
 	
@@ -216,49 +217,61 @@ void store_data(int p[DataSize])
 }
 
 //transit frame - ae[0] | ae[1] | ae[2] | ae[3] | bat_volt | phi | theta | psi | sp | sq | sr
-/*void rs232_write()
+void rs232_write()
 {
-	int8_t tx_buff[22];
+	int8_t tx_buff[40];
 	int16_t bat_volt_temp = bat_volt - 32767;
 	int16_t crc;
 	
-	tx_buff[0] 		= 0xFF;
-	tx_buff[1] 		= (int8_t)ae[0];
-	tx_buff[2] 		= (int8_t)(ae[0]>>8);
-	tx_buff[3] 		= (int8_t)ae[1];
-	tx_buff[4] 		= (int8_t)(ae[1]>>8);
-	tx_buff[5] 		= (int8_t)ae[2];
-	tx_buff[6] 		= (int8_t)(ae[2]>>8);
-	tx_buff[7] 		= (int8_t)ae[3];
-	tx_buff[8] 		= (int8_t)(ae[3]>>8);
-	tx_buff[9] 		= (int8_t)bat_volt_temp;
-	tx_buff[10]		 = (int8_t)(bat_volt_temp>>8);
-	tx_buff[11]		 = (int8_t)phi;
-	tx_buff[12]		 = (int8_t)(phi>>8);
-	tx_buff[13]		 = (int8_t)theta;
-	tx_buff[14]		 = (int8_t)(theta>>8);
-	tx_buff[15]		 = (int8_t)psi;
-	tx_buff[16]		 = (int8_t)(psi>>8);
-	tx_buff[17]		 = (int8_t)sp;
-	tx_buff[18]		 = (int8_t)(sp>>8);
-	tx_buff[19]		 = (int8_t)sq;
-	tx_buff[20]		 = (int8_t)(sq>>8);
-	tx_buff[21]		 = (int8_t)sr;
-	tx_buff[22]      = (int8_t)(sr>>8);
-			
-	crc = calc_crc(tx_buff);
+	tx_buff[0] 		= 0xFA;
+	tx_buff[1] 		= mode;
+	tx_buff[2] 		= (int8_t)ae[0];
+	tx_buff[3] 		= (int8_t)(ae[0]>>8);
+	tx_buff[4] 		= (int8_t)ae[1];
+	tx_buff[5] 		= (int8_t)(ae[1]>>8);
+	tx_buff[6] 		= (int8_t)ae[2];
+	tx_buff[7] 		= (int8_t)(ae[2]>>8);
+	tx_buff[8] 		= (int8_t)ae[3];
+	tx_buff[9] 		= (int8_t)(ae[3]>>8);
+	tx_buff[10]		= (int8_t)bat_volt_temp;
+	tx_buff[11]		 = (int8_t)(bat_volt_temp>>8);
+	tx_buff[12]		 = (int8_t)phi;
+	tx_buff[13]		 = (int8_t)(phi>>8);
+	tx_buff[14]		 = (int8_t)theta;
+	tx_buff[15]		 = (int8_t)(theta>>8);
+	tx_buff[16]		 = (int8_t)psi;
+	tx_buff[17]		 = (int8_t)(psi>>8);
+	tx_buff[18]		 = (int8_t)sp;
+	tx_buff[19]		 = (int8_t)(sp>>8);
+	tx_buff[20]		 = (int8_t)sq;
+	tx_buff[21]		 = (int8_t)(sq>>8);
+	tx_buff[22]      = (int8_t)sr;
+	tx_buff[23]		 = (int8_t)(sr>>8);
+	tx_buff[24]      = (sax >> 8) & 0xFF;
+	tx_buff[25]      = sax & 0xFF;
+	tx_buff[26]      = (say >> 8) & 0xFF;
+	tx_buff[27]      = say & 0xFF;
+	tx_buff[28]      = (saz >> 8) & 0xFF;
+	tx_buff[29]      = saz & 0xFF;
+	tx_buff[30]      = (lift >> 8) & 0xFF;
+	tx_buff[31]      = lift & 0xFF;
+	tx_buff[32]      = (roll >> 8) & 0xFF;
+	tx_buff[33]      = roll & 0xFF;
+	tx_buff[34]      = (pitch >> 8) & 0xFF;
+	tx_buff[35]      = pitch & 0xFF;
+	tx_buff[36]      = (yaw >> 8) & 0xFF;
+	tx_buff[37]	     = yaw & 0xFF;
+	crc = calc_crc(tx_buff,40);
 	
-	tx_buff[23]= (int8_t)crc;
-	tx_buff[24]= (int8_t)(crc>>8);
+	tx_buff[38]= (int8_t)crc;
+	tx_buff[39]= (int8_t)(crc>>8);
 	
 	
-	for(int i=0; i<25; i++)
-		uart_put(tx_buff[i]);
-	
-	
+	for(int i=0; i<40; i++)
+		uart_put(tx_buff[i]);	
 	
 }
-*/
+
 
 
 

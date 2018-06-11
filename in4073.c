@@ -95,6 +95,7 @@ int main(void)
 	uint32_t previous = get_time_us();
 	p_yaw=10;P1=10;P2=10;packet_drop=0;rec_counter=0;
 	lift_key=0;roll_key=0;pitch_key=0;yaw_key=0;
+	flag_logging = 0;
 	for(int i=0;i<51;i++)
 		data_buffer[i]=0;	
 
@@ -159,12 +160,18 @@ int main(void)
 
 	if ( difference > trigger )
     { previous=current;
-   //printf("%d|%d|%d|%d|lift=%d|roll=%d|pitch=%d|yaw=%d|\n",ae[0],ae[1],ae[2],ae[3],lift,roll,pitch,yaw);
-   //printf("lift_key=%d\n",lift_key);
+    //printf("%d|%d|%d|%d|lift=%d|roll=%d|pitch=%d|yaw=%d|\n",ae[0],ae[1],ae[2],ae[3],lift,roll,pitch,yaw);
+    //printf("lift_key=%d\n",lift_key);
 	//printf("%6d %6d %6d | \n", sp, sq, sr);
 	//printf("cal=%6d |%6d| %6d |%6d| %6d| %6d|\n ",sp_c,sq_c,sr_c,sax_c,say_c,saz_c);
 	//printf("packedrop=%d",packet_drop);
-	save_data_in_flash();
+	
+	if(flag_logging==1)
+		{
+			save_data_in_flash();					
+		}
+		rs232_write();
+	
 	}
 	  if (check_timer_flag()) 
 		{
@@ -191,7 +198,8 @@ int main(void)
 		if(packet_drop>100||rec_counter>1000) 
 		{demo_done=true;
 		 printf("packet dropped=%d,reccount=%d",packet_drop,rec_counter);}
-//rs232_write();
+		
+		
 	}	
 
 	printf("\n\t Goodbye \n\n");

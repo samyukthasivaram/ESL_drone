@@ -92,16 +92,6 @@ void update_data()
 	data_buffer[49] = P1;
 	data_buffer[50] = P2;
 
-
-
-	/*intermediate data from the sensor sign(saz >> 8) & 0xFF;
-	data_buffer[17] = saz & 0xFF;
-	data_buffer[18] = (sp >> 8) & 0xFF;
-	data_buffer[19] = sp & 0xFF;
-	data_buffer[20] = (sq >> 8) & 0xFF;
-	data_buffer[21] = sq & 0xFF;
-	data_buffer[22] = (sr >> 8) & 0xFF;
-	data_bufal processing chain?????????????*/
 	//printf("update data successful\n");
 }
 
@@ -115,6 +105,8 @@ void save_data_in_flash()
 			if (flash_chip_erase()) 
 			{
 				addr = MIN_ADDR;
+				flag_logging=0;
+				read_from_flash();	
 			}
 			else 
 			{
@@ -150,11 +142,8 @@ void save_data_in_flash()
 
 void read_from_flash()//read and save 
 {
+	int start_byte=0xFB;
 	//static uint32_t addr;
-	uint32_t r_time=0,r_pressure=0,r_temperature=0;
-	int8_t r_mode=0, r_incoming=0;//incoming: joystick or keyboard
-	int16_t r_phi=0, r_theta=0, r_psi=0, r_sax=0, r_say=0, r_saz=0, r_sp=0, r_sq=0, r_sr=0, r_lift=0,r_roll=0,r_pitch=0,r_yaw=0;
-	int16_t r_ae[4]={0};
 	//struct read_data r;
 	while ((addr -NUM_DATA) > MIN_ADDR) 
 	{
@@ -166,55 +155,14 @@ void read_from_flash()//read and save
 		}
 		else 
 		{
-			r_time = (read_buffer[0] << 24) + (read_buffer[1] << 16) + (read_buffer[2] << 8) + read_buffer[3];
-			r_mode = read_buffer[4];
-			r_incoming = read_buffer[5];
-			r_phi = (read_buffer[6] << 8 )+ read_buffer[7];
-			r_theta = (read_buffer[8] << 8) + read_buffer[9];
-			r_psi = (read_buffer[10] << 8 )+ read_buffer[11];
-			r_sax = (read_buffer[12] << 8 )+ read_buffer[13];
-			r_say =( read_buffer[14] << 8) + read_buffer[15];
-			r_saz = (read_buffer[16] << 8 )+ read_buffer[17];
-			r_sp= (read_buffer[18]<< 8) + read_buffer[19];
-			r_sq = (read_buffer[20] << 8 )+ read_buffer[21];
-			r_sr = (read_buffer[22] << 8) + read_buffer[23];
-			r_pressure = (read_buffer[24] << 24) + (read_buffer[25] << 16) + (read_buffer[26] << 8) + read_buffer[27];
-			r_temperature = (read_buffer[28] << 24) + (read_buffer[29] << 16) + (read_buffer[30] << 8 )+ read_buffer[31];
-			r_ae[0] = (read_buffer[32] << 8) + read_buffer[33];
-			r_ae[1] = (read_buffer[34] << 8) + read_buffer[35];
-			r_ae[2] = (read_buffer[36] << 8) + read_buffer[37];
-			r_ae[3] = (read_buffer[38] << 8) + read_buffer[39];
-			r_lift = (read_buffer[40] << 8) + read_buffer[41];
-			r_roll = (read_buffer[42] << 8) + read_buffer[43];
-			r_pitch = (read_buffer[44] << 8) + read_buffer[45];
-			r_yaw = (read_buffer[46] << 8) + read_buffer[47];
-
-			
-		
-    
-
-			FILE *fp;
-			fp = fopen("data.txt", "w+");
-			if (!fp) 
-			{
-				printf("creat file error");
-			}
-			else 
-			{
-				fprintf(fp,"%10ld,%10ld,%10ld,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d",r_time,r_pressure,r_temperature,r_mode,r_incoming,r_phi,r_theta,r_psi,r_sax,r_say,r_saz,r_sp,r_sq,r_sr,r_ae[0],r_ae[1],r_ae[2],r_ae[3],r_lift,r_roll,r_pitch,r_yaw);
-				//fwrite(&r, sizeof(r), 1, fp);
-			   fprintf(f, "%s","\n");
-				fclose(fp);
-			}
-			
-		
-		
+			uart_put(start_byte);	
+			for(int i=0; i<50; i++)
+			uart_put(read_buffer[i]);		
 		}
-		printf("%10ld|%10ld|%10ld|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|",r_time,r_pressure,r_temperature,r_mode,r_incoming,r_phi,r_theta,r_psi,r_sax,r_say,r_saz,r_sp,r_sq,r_sr,r_ae[0],r_ae[1],r_ae[2],r_ae[3],r_lift,r_roll,r_pitch,r_yaw);
-
+		
 		addr -= NUM_DATA;
 		printf("read data successful");
-		//
+		
 	}
 
 }
