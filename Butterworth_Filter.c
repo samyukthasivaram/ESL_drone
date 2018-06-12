@@ -52,7 +52,7 @@ void butterWorth_2ndOrder()
 }
 
 //16 bits, 8 bits fraction
-int mul(float x, float y)
+int16_t mul(int16_t x, int16_t y)
 {
 	int result = 0;
 	result = x * y;
@@ -65,7 +65,7 @@ int mul(float x, float y)
  * Reference: fixed_order2_butterworth10.c
  *----------------------------------------------------------------
  */
-int	float2fix(double x)
+int16_t	float2fix(double x)
 {
 	int	y;
 
