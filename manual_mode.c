@@ -1,75 +1,85 @@
 //http://www.microchip.com/forums/m577584.aspx
-int squareroot(int value)
+
+#include "in4073.h"
+#define Motor_const 13
+int16_t squareroot(int16_t value)
 {
- unsigned Root = 0;
-         unsigned Bit;
-         for ( Bit = 0x4000; Bit > 0; Bit >>= 2 )
-           {
-             unsigned Trial = Root + Bit;
-             Root >>= 1;
-             if ( Trial <= Value )
-               {
-                 Root += Bit;
-                 Value -= Trial;
-               }
-           }
-         printf("%d",Root);		 
-		return root;
+    unsigned Root = 0;
+    unsigned Bit;
+    if(value<0)	value = - value;
+    for ( Bit = 0x4000; Bit > 0; Bit >>= 2 )
+        {
+        	unsigned Trial = Root + Bit;
+            Root >>= 1;
+            if ( Trial <= value )
+            {
+                Root += Bit;
+                value -= Trial;
+            }
+        }
+       // printf("%d",Root);		 
+		return Root;
 }
 
-void manual_mode_sqrt(int16_t roll, int16_t pitch, int16_t yaw, int16_t lift)
+void manual_mode_sqrt()
 {
-int w1_sqr = 0;
-int w2_sqr = 0;
-int w3_sqr = 0;
-int w4_sqr = 0;
-int ae1, ae2, ae3, ae4;
-w1_sqr= -yaw - lift + pitch + pitch;
-ae1 = squareroot(w1_sqr);
-w3_sqr= -yaw - lift - pitch - pitch;
-ae3 = squareroot(w3_sqr);
-w2_sqr= yaw - lift - roll - roll;
-ae2 = squareroot(w2_sqr);
-w4_sqr= yaw - lift + roll + roll;
-ae4 = squareroot(w4_sqr);
 
- if (ae1 < 0) ae1 = 0; 
- if (ae1 > 500) ae1 = 500;
- if (ae2 < 0) ae2 = 0; 
- if (ae2 > 500) ae2 = 500;
- if (ae3 < 0) ae3 = 0; 
- if (ae3 > 500) ae3 = 500;
- if (ae4 < 0) ae4 = 0; 
- if (ae4 > 500) ae4 = 500;
+int16_t man_roll=0,man_pitch=0,man_yaw=0,man_lift=0;
+
+man_lift=lift;
+man_roll=roll;
+man_yaw=yaw;
+man_pitch=pitch;
+
+motor_control(man_lift,man_roll,man_pitch,man_yaw);
 
 }
 
-void manual_mode_withoutsqrt(int16_t roll, int16_t pitch, int16_t yaw, int16_t lift)
-{
-int ae1 = 0;
-int ae2 = 0;
-int ae3 = 0;
-int ae4 = 0;
-ae1= -yaw - lift + pitch + pitch;
-ae2= -yaw - lift - pitch - pitch;
-ae3= yaw - lift - roll - roll;
-ae4= yaw - lift + roll + roll;
 
 
+void motor_control(int16_t t_lift, int16_t t_roll,int16_t t_pitch, int16_t t_yaw)
+{   int16_t w1_sqr = 0;
+	int16_t w2_sqr = 0;
+	int16_t w3_sqr = 0;
+	int16_t w4_sqr = 0;
 
- if (ae1 < 0) ae1 = 0; 
- if (ae1 > 500) ae1 = 500;
- if (ae2 < 0) ae2 = 0; 
- if (ae2 > 500) ae2 = 500;
- if (ae3 < 0) ae3 = 0; 
- if (ae3 > 500) ae3 = 500;
- if (ae4 < 0) ae4 = 0; 
- if (ae4 > 500) ae4 = 500;
- 
+		
+    if(t_lift<277)
+    {
+	ae[0] = squareroot(t_lift) * Motor_const ;
+	ae[1] = squareroot(t_lift) * Motor_const ;
+	ae[2] = squareroot(t_lift) * Motor_const ;
+	ae[3] = squareroot(t_lift) * Motor_const ;
+
+    }
+
+    else
+    {
+
+    w1_sqr= (int16_t) (-t_yaw + t_lift + 2*t_pitch) ;
+	w3_sqr= (int16_t) (-t_yaw + t_lift  - 2*t_pitch);
+	w2_sqr= (int16_t) (t_yaw + t_lift  - 2*t_roll) ;	
+	w4_sqr= (int16_t) (t_yaw + t_lift  + 2*t_roll) ;
+	ae[0] = squareroot(w1_sqr) * Motor_const ;
+	ae[1] = squareroot(w2_sqr) * Motor_const ;
+	ae[2] = squareroot(w3_sqr) * Motor_const ;
+	ae[3] = squareroot(w4_sqr) * Motor_const ;
+	
+ //printf("manual/n");
+ if (ae[0] < 200) ae[0] = 200; 
+ if (ae[0] > 600) ae[0] = 600;
+ if (ae[1] < 200) ae[1] = 200; 
+ if (ae[1] > 600) ae[1] = 600;
+ if (ae[2] < 200) ae[2] = 200; 
+ if (ae[2] > 600) ae[2] = 600;
+ if (ae[3] < 200) ae[3] = 200; 
+ if (ae[3] > 600) ae[3] = 600;
+    }
 }
 
-void manual_mode_lookup()
-{
 
 
-}
+
+
+
+
