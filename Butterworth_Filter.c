@@ -13,26 +13,17 @@
 #include <stdlib.h>
 #include "in4073.h"
 
-static float b[3] = {0.0001832, -0.0002235, 0.0000403};
-static float a[3] = {1.0000, -2.0031, 1.0031};
+static float b[3] = {0.0461318020933129, 0.0922636041866259, 0.0461318020933129};
+static float a[3] = {1, -1.30728502884932, 0.491812237222575};
 static float bz[2] = {0};
 static float az[3] = {0};
-static int16_t init[2] = {0};		// for 1st-order
 static int32_t initx[3] = {0};		// for 2nd-order 
 static int32_t inity[2] = {0};		// for 2nd-order 
 
-//x0 is initialized as 0 and updated inside the loop
-void butterworth_1stOrder()
-{
-	init[1] = sr ;
-	r_bf = (int16_t)(init[1] + init[0]) / 2;
-	init[0] = init[1];
-}
-
 void butterWorth_2ndOrder()
 {
-	initx[2] = sr << 8;
-	int32_t y = r_bf << 8;
+	initx[2] = sr;
+	int16_t y = r_bf;
 	az[0] = float2fix(a[0]);
 	az[1] = float2fix(a[1]);
 	az[2] = float2fix(a[2]);
@@ -48,7 +39,7 @@ void butterWorth_2ndOrder()
 	initx[1] = initx[2];	//x1 = x;
 	inity[0] = inity[1];	//y0 = y1;
 	inity[1] = y;			//y1 = y;
-	r_bf = y >> 8;
+	r_bf = y;
 }
 
 //16 bits, 8 bits fraction
