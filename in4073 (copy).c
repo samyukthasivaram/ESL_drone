@@ -14,9 +14,55 @@
  */
 
 #include "in4073.h"
+//#define PROFILE
+//#define TELEMETRY
 
-
-
+/*------------------------------------------------------------------
+ * process_key -- process command keys
+ *------------------------------------------------------------------
+ */
+/*void process_key(uint8_t c)
+{
+	switch (c)
+	{
+		case 0://lift up
+			lift+=1;
+			
+			break;
+		case 1://lift down
+			lift-=1;
+			
+			break;
+		case 2://roll up
+			roll+=1;
+			break;
+		case 3://roll down
+		roll-=1;
+			break;
+		case 4://pitch down
+			pitch-=1;
+			break;
+		case 5://pitch up
+		pitch+=1;
+			break;
+		case 6:// yaw clockwise
+		yaw+=1;
+			break;
+		case 7://yaw ccw
+			yaw-=1;
+			break;
+		case 8: p_yaw+=1;break;
+		case 9: p_yaw-=1;break;
+		case 10:P1+=1;break;
+		case 11:P1-=1;break;
+		case 12:P2+=1;break;
+		case 13:P2-=1;break;
+			
+		//default:
+			//nrf_gpio_pin_toggle(RED);
+	}
+}
+*/
 void bat_chk() //if low battery then go to panic mode
 {
 
@@ -32,9 +78,12 @@ if(bat_volt<1100)
  */
 int main(void)
 {
-	//uint32_t start_fullloop = get_time_us();
-	//	uint32_t start_rstime,full_loop, stop_rstime,start_logtime,stop_logtime,start_controltime,stop_controltime,start_senstime,stop_senstime;
-	//	full_loop = get_time_us();
+
+	#ifdef PROFILE
+		uint32_t start_fullloop = get_time_us();
+		uint32_t start_rstime,full_loop, stop_rstime,start_logtime,stop_logtime,start_controltime,stop_controltime,start_senstime,stop_senstime,start_teletime,stop_teletime;
+		full_loop = get_time_us();
+	#endif
 	uart_init();
 	gpio_init();
 	timers_init();
@@ -60,19 +109,36 @@ int main(void)
 	while (!demo_done)
 	
 	{	
-		// start_fullloop = get_time_us();
-		//  start_rstime = get_time_us();
+	#ifdef PROFILE
+	
+	//printf("  %10ld \n",full_loop);
+	start_fullloop = get_time_us();
+	#endif
+
+#ifdef PROFILE
+ start_rstime = get_time_us();
+#endif
 		rs232_read();
-	 //stop_rstime = get_time_us() - start_rstime ;
-
+#ifdef PROFILE
+ stop_rstime = get_time_us() - start_rstime ;
+#endif
 		//process_key(keyboard);
-		if(keyboard!=0xF0) keyboard=0xF0;
 
+		if(keyboard!=0xF0) keyboard=0xF0;
+/*
+#ifdef PROFILE
+ start_filtertime = get_time_us();
+#endif
 kalmanFilter();
 butterWorth_2ndOrder();
+#ifdef PROFILE
+ stop_filtertime = get_time_us() - start_filtertime ;
+#endif
+*/
 
-
-//start_controltime = get_time_us();
+#ifdef PROFILE
+ start_controltime = get_time_us();
+#endif
 	switch(state_mode)
 	{case 0: 
 			 safe_mode(); 
@@ -91,22 +157,21 @@ butterWorth_2ndOrder();
 			 else {printf("invalid mode");state_mode=0;}
 			 break;
 	 case 1: if(prev_mode==mode)
-	 		{panic_flag=0; 
+	 		{panic_flag=0;
 	         switch(mode)
 	 			{case 2: manual_mode_sqrt();
+				 printf("hi");
 						break;
 		  		case 3:  callibration_mode();
 				  			state_mode=0;calib_flag=1;
 						break;
 				case 4:  
-						if(calib_flag==1)
-						yaw_control();
-						else state_mode=0;
+							yaw_control();
+						//else state_mode=0;
 						break;
 				case 5: 
-						if(calib_flag==1)
-						full_control();
-						else state_mode=0;
+							full_control();
+						//else state_mode=0;
 						break;
 				case 6://raw_mode();break;
 				case 7://height control
@@ -127,17 +192,23 @@ butterWorth_2ndOrder();
 	 default: state_mode=0;
 
 	}
-
-	 
 	
 	if (check_sensor_int_flag()) 
 		{
 			get_dmp_data();//bat_chk();
 			run_filters_and_control();
 		}
-//stop_controltime = get_time_us() - start_controltime ;
-	
- //start_senstime = get_time_us();
+
+#ifdef PROFILE
+ stop_controltime = get_time_us() - start_controltime ;
+#endif
+
+
+
+	#ifdef PROFILE
+		 start_senstime = get_time_us();
+	#endif
+
 	  if (check_timer_flag()) 
 		{
 			if (counter++%20 == 0) nrf_gpio_pin_toggle(BLUE);
@@ -154,8 +225,10 @@ butterWorth_2ndOrder();
 			//printf("%10ld | ", get_time_us());
 			clear_timer_flag();
 		}
-	// stop_senstime = get_time_us() - start_senstime ;	
-	
+		
+	#ifdef PROFILE
+		 stop_senstime = get_time_us() - start_senstime ;
+	#endif
 
 
 	uint32_t current = get_time_us();
@@ -164,32 +237,69 @@ butterWorth_2ndOrder();
 	if ( difference > trigger )
     { previous=current;
 
+	#ifdef TELEMETRY
+
+
+
 	if(flag_logging==1)
 		{	
-			//start_logtime = get_time_us();
+		#ifdef PROFILE
+		 start_logtime = get_time_us();
+		#endif
+
 			save_data_in_flash();
-			//stop_logtime = get_time_us() - start_logtime ;
-			//printf("%10ld|",stop_logtime);
+
+		#ifdef PROFILE
+		 stop_logtime = get_time_us() - start_logtime ;
+		 printf("%10ld|",stop_logtime);
+		#endif
+
 		}
-		//start_logtime = get_time_us();
-		rs232_write();	
-		//stop_logtime = get_time_us() - start_logtime ;
-			//printf("%10ld|",stop_logtime);
-	//full_loop = get_time_us() - start_fullloop;
-	//printf("%d|%10ld|%10ld|%10ld|%10ld|%d|%d|%d|%d|lift=%d|roll=%d|pitch=%d|yaw=%d|\n",rec_counter,full_loop,stop_rstime,stop_controltime,stop_senstime,ae[0],ae[1],ae[2],ae[3],lift,roll,pitch,yaw);
+
+
+	#ifdef PROFILE
+		 start_teletime = get_time_us();
+	#endif
+		rs232_write();
+
+	#ifdef PROFILE
+		 stop_teletime = get_time_us() - start_teletime ;
+		 printf("%d |%10ld|",mode,stop_teletime);
+	#endif
+	
+	
+	#ifdef PROFILE
+	 printf("%d|%d|%d|%d|lift=%d|roll=%d|pitch=%d|yaw=%d|\n",ae[0],ae[1],ae[2],ae[3],lift,roll,pitch,yaw);
+   
+	printf(" %10ld|%10ld| %10ld| %10ld \n",stop_rstime,stop_controltime,stop_senstime,full_loop);
+	#endif
+	
+	#else 	
+	
+    printf("%d|%d|%d|%d|lift=%d|roll=%d|pitch=%d|yaw=%d|\n",ae[0],ae[1],ae[2],ae[3],lift,roll,pitch,yaw);
     //printf("lift_key=%d\n",lift_key);
 	//printf("%6d %6d %6d | \n", sp, sq, sr);
 	//printf("cal=%6d |%6d| %6d |%6d| %6d| %6d|\n ",sp_c,sq_c,sr_c,sax_c,say_c,saz_c);
 	//printf("packedrop=%d",packet_drop);
 	//printf("kal=%d|%d|%d|%d|\n",p_kalman,sp,q_kalman,sq);
 	//printf("yaw=%d|%d\n",r_bf,sr);
+	#endif
+
 	}
 
 
 		
 		if(packet_drop>10000||rec_counter>1000) 
 		{demo_done=true;
-		 printf("packet dropped=%d,reccount=%d",packet_drop,rec_counter);}	
+		 printf("packet dropped=%d,reccount=%d",packet_drop,rec_counter);}
+		 
+		 	
+	
+	
+		#ifdef PROFILE
+full_loop = get_time_us() - start_fullloop;
+		#endif	
+		
 
 	}	
 	

@@ -470,7 +470,7 @@ int main(int argc, char **argv)
 	int16_t crc=0x0000;
 	int flag_mode = 0;
 	int msec = 0, trigger = 14;
-	int r_msec = 0, r_trigger = 4;
+	int r_msec = 0, r_trigger = 3;
 	clock_t r_previous = clock();
 	clock_t previous = clock();
 	term_puts("\nTerminal program - Embedded Real-Time Systems\n");
@@ -495,10 +495,10 @@ int main(int argc, char **argv)
 	/* send & receive
 	 */
 
-		lift = 32767;
-		roll = 32767;
-		pitch = 32767;
-		yaw = 32767;
+		lift = 1000;
+		roll = 1000;
+		pitch = 1000;
+		yaw = 1000;
 	for (;;)
 	{	
 	flag_mode = 0;		
@@ -713,10 +713,10 @@ int main(int argc, char **argv)
 		{
 			r_previous=r_current;	
 	if ((c = rs232_getchar_nb()) != -1)  
-		{//rs232_pc(c);
+		{rs232_pc(c);
 			//printf("%d",c);
-		if((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c>='0' && c<='9')||c=='\n'||c=='-'||c=='|')
-	    term_putchar(c);
+		//if((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c>='0' && c<='9')||c=='\n'||c=='-'||c=='|')
+	    //term_putchar(c);
 		}
 		}
 	

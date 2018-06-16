@@ -102,6 +102,7 @@ void rs232_read()
 				}
 				else    //if CRC is wrong check for start byte to start over
 				{    
+					//printf("crc wrong");
 					if(check1 == StartByte)
 					{
 						frame[0] = check2;
@@ -150,7 +151,7 @@ void rs232_read()
 
 void store_data(int8_t p[DataSize])
 {
-
+	
 	int16_t temp_lift, temp_roll, temp_pitch, temp_yaw;
 
 	mode= p[0];	

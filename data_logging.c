@@ -28,7 +28,7 @@
 
 void update_data()
 {   
-	
+	//printf("%10ld | \n ", get_time_us());
    //flash_chip_erase()
 	uint32_t system_time;
 	system_time = get_time_us();
@@ -121,7 +121,7 @@ void save_data_in_flash()
 		if(flash_write_bytes(addr, data_buffer, NUM_DATA))
 		{
 			addr = addr + NUM_DATA;
-			printf("\nwrite success");
+			//printf("\nwrite success");
 		}
 		else 
 		{
@@ -132,7 +132,7 @@ void save_data_in_flash()
 
 
 void read_from_flash()//read and save 
-{
+{	static uint32_t lower_address = MIN_ADDR;
 	int start_byte=0xFB;
 	uint8_t read_flash[NUM_DATA];
 	uint8_t *read_buffer;int8_t read_flashnew[NUM_DATA+3];
@@ -142,11 +142,12 @@ void read_from_flash()//read and save
 	read_buffer=read_flash;
 	//static uint32_t addr;
 	//struct read_data r;
-	while ((addr -NUM_DATA) > MIN_ADDR) 
+
+	while ((lower_address + NUM_DATA) <= addr) 
 	{
 		
 	
-		if (!flash_read_bytes(addr, read_buffer, NUM_DATA) )
+		if (!flash_read_bytes(lower_address, read_buffer, NUM_DATA) )
 		{
 			printf("read flash failed");
 		}
@@ -178,10 +179,20 @@ for(int i=0; i<NUM_DATA+3; i++)
 					
 		}
 		
-		addr -= NUM_DATA;
+		lower_address += NUM_DATA;
 		//printf("read data successful");
 		
 	}
+	if (flash_chip_erase())
+		{
+			addr = MIN_ADDR;
+		}
+		else
+		{
+			printf("\nflash_chip_erase:error");
+		}
+
+	lower_address = MIN_ADDR;
 
 }
 
