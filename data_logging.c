@@ -1,35 +1,29 @@
-#include<stdio.h>
-#include<math.h>
-#include<stdint.h>
+/*----------------------------------------------------------------------------------------------------------
+ *This file ontains functions that enable us to write and read from flash
+ *
+ * Developed and tested by Samyuktha Sivaram
+ * Embedded Software Lab
+ * Date - 16.06.2018
+ */----------------------------------------------------------------------------------------------------------
+
 #include"in4073.h"
 
-
-
-
-#define NUM_DATA 50
+#define NUM_DATA   51
 #define MAX_ADDR   0x1FFF
 #define MIN_ADDR   0x0000
 
-/*struct read_data
-{
-	float time;
-	int mode;
-	int incoming;
-	float phi, theta, psi;
-	float sax, say, saz, sp, sq, sr;
-	float pressure, temperature;
-	float ae[4];
-
-};*/
+static uint32_t addr=MIN_ADDR;
 
 
-	static uint32_t addr=MIN_ADDR;
-
-
+/*----------------------------------------------------------------------------------------------------------
+ * Function update_data() - updata the data that is to be stored in the flash in an array
+ * Return value - void
+ * Arguments : null
+ *----------------------------------------------------------------------------------------------------------
+ */
+ 
 void update_data()
 {   
-	
-   //flash_chip_erase()
 	uint32_t system_time;
 	system_time = get_time_us();
 	//system time,4 bytes
@@ -66,7 +60,6 @@ void update_data()
 	data_buffer[25] = (pressure >> 16) & 0xFF;
 	data_buffer[26] = (pressure >> 8) & 0xFF;
 	data_buffer[27] = pressure & 0xFF;
-
 	data_buffer[28] = (temperature >> 24) & 0xFF;
 	data_buffer[29] = (temperature>> 16) & 0xFF;
 	data_buffer[30] = (temperature >> 8) & 0xFF;
@@ -91,39 +84,25 @@ void update_data()
 	data_buffer[48] = p_yaw;
 	data_buffer[49] = P1;
 	data_buffer[50] = P2;
-
-
-
-	/*intermediate data from the sensor sign(saz >> 8) & 0xFF;
-	data_buffer[17] = saz & 0xFF;
-	data_buffer[18] = (sp >> 8) & 0xFF;
-	data_buffer[19] = sp & 0xFF;
-	data_buffer[20] = (sq >> 8) & 0xFF;
-	data_buffer[21] = sq & 0xFF;
-	data_buffer[22] = (sr >> 8) & 0xFF;
-	data_bufal processing chain?????????????*/
-	//printf("update data successful\n");
+	
 }
 
+/*----------------------------------------------------------------------------------------------------------
+ * Function save_data_in_flash() - write the data in the flash
+ * Return value - void
+ * Arguments : null
+ *----------------------------------------------------------------------------------------------------------
+ */
+ 
 void save_data_in_flash() 
 { 
 
 	update_data();
-		if (addr == MAX_ADDR)
-		{
-			printf("\nThe flash is full and can not write data in it.\n");
-			if (flash_chip_erase()) 
-			{
-				addr = MIN_ADDR;
-			}
-			else 
-			{
-				printf("\nflash_chip_erase:error");
-			}
-		}
 	
-	if (addr += NUM_DATA > MAX_ADDR)
+	/* if the flash memory is full clear flash and move addr to MIN_ADDR */
+	if ((addr + NUM_DATA) > MAX_ADDR)
 	{
+		flag_logging=0;
 		printf("\ncan not write all the data in flash");
 		if (flash_chip_erase())
 		{
@@ -134,11 +113,14 @@ void save_data_in_flash()
 			printf("\nflash_chip_erase:error");
 		}
 
-	}else
+	}
+	
+	/*write data to flash and move addr by NUM_DATA bytes */
+	else
 	{
 		if(flash_write_bytes(addr, data_buffer, NUM_DATA))
 		{
-			addr = addr + NUM_DATA;printf("\nwrite success");
+			addr = addr + NUM_DATA;
 		}
 		else 
 		{
@@ -147,83 +129,70 @@ void save_data_in_flash()
 	}
 }
 
+/*----------------------------------------------------------------------------------------------------------
+ * Function read_from_flash() - read the data from flash and send it to PC for logging via UART
+ * Return value - void
+ * Arguments : null
+ *----------------------------------------------------------------------------------------------------------
+ */
+ 
+void read_from_flash()
+{	
+	static uint32_t lower_address = MIN_ADDR;
+	int start_byte=0xFB;
+	uint8_t read_flash[NUM_DATA];
+	uint8_t *read_buffer;int8_t read_flashnew[NUM_DATA+3];
+	int16_t crc;
+	int  trigger_p = 100000;
+	uint32_t difference_p;
+	read_buffer=read_flash;
 
-void read_from_flash(uint8_t *read_buffer)//read and save 
-{
-	//static uint32_t addr;
-	uint32_t r_time=0,r_pressure=0,r_temperature=0;
-	int8_t r_mode=0, r_incoming=0;//incoming: joystick or keyboard
-	int16_t r_phi=0, r_theta=0, r_psi=0, r_sax=0, r_say=0, r_saz=0, r_sp=0, r_sq=0, r_sr=0, r_lift=0,r_roll=0,r_pitch=0,r_yaw=0;
-	int16_t r_ae[4]={0};
-	//struct read_data r;
-	while ((addr -NUM_DATA) > MIN_ADDR) 
+	while ((lower_address + NUM_DATA) <= addr) 
 	{
-		
-	
-		if (!flash_read_bytes(addr, read_buffer, NUM_DATA) )
+		if (!flash_read_bytes(lower_address, read_buffer, NUM_DATA) )
 		{
 			printf("read flash failed");
 		}
 		else 
-		{
-			r_time = (read_buffer[0] << 24) + (read_buffer[1] << 16) + (read_buffer[2] << 8) + read_buffer[3];
-			r_mode = read_buffer[4];
-			r_incoming = read_buffer[5];
-			r_phi = (read_buffer[6] << 8 )+ read_buffer[7];
-			r_theta = (read_buffer[8] << 8) + read_buffer[9];
-			r_psi = (read_buffer[10] << 8 )+ read_buffer[11];
-			r_sax = (read_buffer[12] << 8 )+ read_buffer[13];
-			r_say =( read_buffer[14] << 8) + read_buffer[15];
-			r_saz = (read_buffer[16] << 8 )+ read_buffer[17];
-			r_sp= (read_buffer[18]<< 8) + read_buffer[19];
-			r_sq = (read_buffer[20] << 8 )+ read_buffer[21];
-			r_sr = (read_buffer[22] << 8) + read_buffer[23];
-			r_pressure = (read_buffer[24] << 24) + (read_buffer[25] << 16) + (read_buffer[26] << 8) + read_buffer[27];
-			r_temperature = (read_buffer[28] << 24) + (read_buffer[29] << 16) + (read_buffer[30] << 8 )+ read_buffer[31];
-			r_ae[0] = (read_buffer[32] << 8) + read_buffer[33];
-			r_ae[1] = (read_buffer[34] << 8) + read_buffer[35];
-			r_ae[2] = (read_buffer[36] << 8) + read_buffer[37];
-			r_ae[3] = (read_buffer[38] << 8) + read_buffer[39];
-			r_lift = (read_buffer[40] << 8) + read_buffer[41];
-			r_roll = (read_buffer[42] << 8) + read_buffer[43];
-			r_pitch = (read_buffer[44] << 8) + read_buffer[45];
-			r_yaw = (read_buffer[46] << 8) + read_buffer[47];
-		
-    
-
-		/*	FILE *fp;
-			fp = fopen("data.txt", "w+");
-			if (!fp) 
-			{
-				printf("creat file error");
-			}
-			else 
-			{
-				fwrite(&r, sizeof(r), 1, fp);
-				fclose(fp);
+		{	read_flashnew[0]=start_byte;
+			for(int i=NUM_DATA-1; i>=0; i--)
+			{read_flashnew[i+1]=(int8_t)read_flash[i];
 			}
 			
+			crc=calc_crc(read_flashnew,NUM_DATA+1,1);
+				
+			read_flashnew[52] = (int8_t)(crc);
+			read_flashnew[53] = (int8_t)(crc>>8);
 		
-		*/
+			
+
+		uint32_t before_p = get_time_us();
+			do {
+			  	difference_p = get_time_us() - before_p;		
+				} while ( difference_p < trigger_p );
+
+
+		for(int i=0; i<NUM_DATA+3; i++)
+		{			
+					uart_put(read_flashnew[i]);
 		}
-		printf("%10ld|%10ld|%10ld|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|",r_time,r_pressure,r_temperature,r_mode,r_incoming,r_phi,r_theta,r_psi,r_sax,r_say,r_saz,r_sp,r_sq,r_sr,r_ae[0],r_ae[1],r_ae[2],r_ae[3],r_lift,r_roll,r_pitch,r_yaw);
-
-		addr -= NUM_DATA;
-		printf("read data successful");
-		//
+					
+		}
+		lower_address += NUM_DATA;
 	}
-
-}
-
-bool flash_clear() 
-{
+	/* clear flash after reading */
 	if (flash_chip_erase())
-	{
-		printf("The flash is cleared.");
-			return true;
-	}
-	else 
-	{
-		return false;
-	}
+		{
+			addr = MIN_ADDR;
+		}
+		else
+		{
+			printf("\nflash_chip_erase:error");
+		}
+
+	lower_address = MIN_ADDR;
+
 }
+
+
+ 

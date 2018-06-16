@@ -1,45 +1,267 @@
 /*------------------------------------------------------------
- * Simple pc terminal in C
+ * - pc_terminal.c
+ * 
+ * -This file has 2 parts - Data processing (Data logging 
+ *  and telemetry)and Input processing
  *
- * Arjan J.C. van Gemund (+ mods by Ioannis Protonotarios)
- *
- * read more: http://mirror.datenwolf.net/serial/
+ * Developed and tested by Samyuktha Sivaram
+ * Embedded Software Lab
+ * Date - 16.06.2018
  *------------------------------------------------------------
  */
 
-#include <inttypes.h>
-#include <sys/ioctl.h>
-#include <sys/time.h>
-#include <sys/types.h>
-#include <stdlib.h>
-#include <fcntl.h>
-#include <stdint.h>
-#include <unistd.h>
-#include <stdio.h>
-#include <errno.h>
-#include <string.h>
-#include <termios.h>
-#include <sys/stat.h>
-#include "joystick.h"
-#include "crc.h"
-#include <termios.h>
-#include <ctype.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <stdio.h>
-#include <assert.h>
-#include <time.h>
+#include "pc_terminal.h"
+
 
 int serial_device = 0;
-int fd_RS232;
+int fd_RS232;  							/*file for writing joystick values - 'data.csv' */
+FILE *fp; 								/*file for data logging - 'data.csv' */
+static int Datasize=0; 					/*size of payload for data processing*/
+int frame[51];							/* payload received */
+uint8_t count=0;						/* count the number of bytes received via RS232*/
+int rx_wrong[51];						/* temporary buffer to store data during header synchronisation*/
+int8_t StartByte=0xFF;					/* start byte of Pc to drone frame */
+static int8_t check1 = 0,check2 = 0;	/*store the 2 bytes of CRC received via RS232 */
 
-#define NAME_LENGTH 128
-#define POLY 0x8005
+/*------------------------------------------------------------
+ * Function crc_pc() - compute CRC for an array of values
+ * Return value - 2 bytes of calculated CRC
+ * Arguments : Frame[] - Array for which the CRC needs to be computed
+ * 			   Count - The number of elements in the array
+ * 
+ *------------------------------------------------------------
+ */
+int16_t crc_pc(int frame[],int count_crc)
 
+{	
+    int16_t crc,byte;
+    crc = 0;    
+    for (int i=0; i< count_crc; i++)
+    {
+            byte=frame[i];
+            crc ^=byte<<8;
+	    for(int k=8;k>0;k--)
+		{if(crc & 0x8000)
+			crc^=POLY;
+		 crc=crc<<1;
+		}   
+    }
+    return crc;
+}
 
-//CRC calculation without LUT
+/*----------------------------------------------------------------------------------------------------------
+ * Function check_crc() - compute CRC for an array of values and check if it is equal to the received CRC 
+ * Return value - 1 if the received and calculated CRC are equal
+ *				- 0 if the received and calculated CRC are not equal
+ * Arguments : c1 - First byte of the received CRC
+ * 			   c2 - Second byte of the received CRC
+ * 			   q[]- The array of data for which the CRC needs to be computed
+ *----------------------------------------------------------------------------------------------------------
+ */
+ 
+int check_crc(int8_t c1, int8_t c2, int q[])
+{
+   int16_t w= crc_pc(q,Datasize);
+   int16_t new_c = ((c2<<8) & 0xFF00) | (c1 & 0x00FF);
+
+  if (w==new_c) 
+	 return 1;
+  else
+   return 0;
+}
+
+/*----------------------------------------------------------------------------------------------------------
+ * Function rs232_pc() - Decode the data received from drone via the UART 
+ *                        using state machine (telemetry and logging)
+ * Return value - void
+ * Arguments : c - 1 byte of the received data via UART
+ *----------------------------------------------------------------------------------------------------------
+*/
+
+void rs232_pc(uint8_t c)
+{
+	static int state = 0;
+	int i=0,j = 0;	
+	
+		switch(state)
+		{
+			/* State 0 - Initial state till the start byte is received*/
+			case 0:
+				if(c == 0xFA)
+				{
+					state = 1;
+					Datasize = 40;  	//telemetry payload = 40 
+				}
+				else if(c==0xFB)
+				{
+					state = 1;
+					Datasize = 51;  	//logging payload = 51
+					
+				}
+				else	state = 0;
+				break;
+				
+			/*State 1 - Receive the payload and the first byte of CRC */	
+			case 1:
+				if(count >=Datasize)
+				{
+					check1 = (int8_t)c;
+					count = 0;
+					state = 2;
+				}
+				else
+				{					
+					frame[count] = (int8_t)c;
+					count++;
+					state = 1;
+				}
+				break;
+			
+			/*State 2 - Receive the second byte of CRC and store the payload if CRC matches*/
+			case 2:
+				check2 = (int8_t)c;
+				if(check_crc(check1,check2,frame))			
+				{
+					state = 0;
+					log_data(frame);
+				}
+				
+				/*if CRC is wrong check do header synchronisation*/
+				else    
+				{   state=0; 
+					if(check1 == StartByte)
+					{
+						frame[0] = check2;
+						count = 1;
+						state = 1;
+					}
+					else if(check2 == StartByte)
+					{
+						count = 0;
+						state = 1;
+					}
+					else
+					{	
+						for(i=0; i<10; i++)  
+						{
+							if(frame[i] == StartByte)
+							{	
+								int k=0;
+								for(j=i+1; j<10; j++)
+									rx_wrong[k++] = frame[j];
+								rx_wrong[k++] = check1;
+								rx_wrong[k++] = check2;
+								state = 1;
+								for(j=0; j<k; j++)
+									frame[j]=rx_wrong[j];
+							}
+							else	state = 0;
+							break;
+						}
+					}
+				}
+				break;			
+			default: printf("deafult case");
+					break;
+		}		
+}
+
+/*----------------------------------------------------------------------------------------------------------
+ * Function log_data() - Print the payload on the screen for telemetry and 
+ *							store the payload in a file for data logging
+ * Return value - void
+ * Arguments : read_buffer[50] - Payload for telemerty and data processing
+ *----------------------------------------------------------------------------------------------------------
+*/
+
+void log_data(int read_buffer[50])
+{
+	uint32_t r_time=0,r_pressure=0,r_temperature=0;
+	int8_t r_mode=0, r_incoming=0;
+	int16_t r_phi=0, r_theta=0, r_psi=0, r_sax=0, r_say=0, r_saz=0, r_sp=0, r_sq=0, r_sr=0, r_lift=0,r_roll=0,r_pitch=0,r_yaw=0;
+	int16_t r_ae[4]={0}, r_bat=0, r_p=0, r_p1=0, r_p2=0;
+	
+	/* Data for Data logging*/		
+	if(Datasize==51)
+	{		
+			r_time = (uint32_t)(read_buffer[0] << 24) | (uint32_t)(read_buffer[1] << 16) | (uint32_t)(read_buffer[2] << 8) |(uint32_t)read_buffer[3];
+			r_mode = read_buffer[4];
+			r_incoming = read_buffer[5];//keyboard
+			r_phi = (read_buffer[6] << 8 )+ read_buffer[7];
+			r_theta = (read_buffer[8] << 8) + read_buffer[9];
+			r_psi = (read_buffer[10] << 8 )+ read_buffer[11];
+			r_sax = (read_buffer[12] << 8 )+ read_buffer[13];
+			r_say =( read_buffer[14] << 8) + read_buffer[15];
+			r_saz = (read_buffer[16] << 8 )+ read_buffer[17];
+			r_sp= (read_buffer[18]<< 8) + read_buffer[19];
+			r_sq = (read_buffer[20] << 8 )+ read_buffer[21];
+			r_sr = (read_buffer[22] << 8) + read_buffer[23];
+			r_pressure = (uint32_t)(read_buffer[24] << 24) | (uint32_t)(read_buffer[25] << 16) |(uint32_t)(read_buffer[26] << 8) | (uint32_t)read_buffer[27];
+			r_temperature = (uint32_t)(read_buffer[28] << 24)| (uint32_t)(read_buffer[29] << 16) | (uint32_t)(read_buffer[30] << 8 )|(uint32_t)read_buffer[31];
+			r_ae[0] = (read_buffer[32] << 8) + read_buffer[33];
+			r_ae[1] = (read_buffer[34] << 8) + read_buffer[35];
+			r_ae[2] = (read_buffer[36] << 8) + read_buffer[37];
+			r_ae[3] = (read_buffer[38] << 8) + read_buffer[39];	
+			r_lift = (read_buffer[40] << 8) + read_buffer[41];
+			r_roll = (read_buffer[42] << 8) + read_buffer[43];
+			r_pitch = (read_buffer[44] << 8) + read_buffer[45];
+			r_yaw = (read_buffer[46] << 8) + read_buffer[47];
+			r_p = read_buffer[48];
+			r_p1 = read_buffer[49];
+			r_p2 = read_buffer[50];
+
+			printf("log:%10ld|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%10ld|%10ld|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|\n",r_time,r_mode,r_incoming,r_phi,r_theta,r_psi,r_sax,r_say,r_saz,r_sp,r_sq,r_sr,r_pressure,r_temperature,r_ae[0],r_ae[1],r_ae[2],r_ae[3],r_lift,r_roll,r_pitch,r_yaw,r_p,r_p1,r_p2);
+		
+			fp = fopen("data.csv", "a");
+			if (!fp) 
+			{
+				printf("creat file error");
+			}
+			else 
+			{			
+				fprintf(fp,"%10ld,%10ld,%10ld,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d",r_time,r_pressure,r_temperature,r_mode,r_incoming,r_phi,r_theta,r_psi,r_sax,r_say,r_saz,r_sp,r_sq,r_sr,r_ae[0],r_ae[1],r_ae[2],r_ae[3],r_lift,r_roll,r_pitch,r_yaw,r_p,r_p1,r_p2);
+			    fprintf(fp, "%s","\n");
+				fclose(fp);
+			}
+	}
+
+	/* Data for Telemetry*/	
+	else if(Datasize==40)
+	{
+			r_mode = read_buffer[0];
+			r_ae[0] = (read_buffer[2] << 8) | read_buffer[1];
+			r_ae[1] = (read_buffer[4] << 8) | read_buffer[3];
+			r_ae[2] = (read_buffer[6] << 8) | read_buffer[5];
+			r_ae[3] = (read_buffer[8] << 8) | read_buffer[7];	
+			r_bat = (read_buffer[10] << 8) | read_buffer[9];
+			r_phi = (read_buffer[12] << 8 )| read_buffer[11];
+			r_theta = (read_buffer[14] << 8) | read_buffer[13];
+			r_psi = (read_buffer[16] << 8 )| read_buffer[15];
+			r_sp= (read_buffer[18]<< 8) | read_buffer[17];
+			r_sq = (read_buffer[20] << 8 )| read_buffer[19];
+			r_sr = (read_buffer[22] << 8) | read_buffer[21];
+			r_sax = (read_buffer[24] << 8 )| read_buffer[23];
+			r_say =( read_buffer[26] << 8) | read_buffer[25];
+			r_saz = (read_buffer[28] << 8 )| read_buffer[27];
+			r_lift = (read_buffer[30] << 8) | read_buffer[29];
+			r_roll = (read_buffer[32] << 8) | read_buffer[31];
+			r_pitch = (read_buffer[34] << 8) | read_buffer[33];
+			r_yaw = (read_buffer[36] << 8) | read_buffer[35];
+			r_p = read_buffer[37];
+			r_p1 = read_buffer[38];
+			r_p2 = read_buffer[39];
+			
+			printf("tele:%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|\n",r_mode,r_ae[0],r_ae[1],r_ae[2],r_ae[3],r_bat,r_phi,r_theta,r_psi,r_sp,r_sq,r_sr,r_sax,r_say,r_saz,r_lift,r_roll,r_pitch,r_yaw,r_p,r_p1,r_p2);
+	}			
+}	
+		
+/*----------------------------------------------------------------------------------------------------------
+ * Function calc_crc() - compute CRC for an array of values to be sent to the drone
+ * Return value - 2 byte of calculated CRC
+ * Arguments : frame[]- The array of data for which the CRC needs to be computed
+ *----------------------------------------------------------------------------------------------------------
+ */
 int16_t calc_crc(int frame[])
-
 {
     int16_t crc,byte;
     crc = 0;
@@ -217,26 +439,28 @@ int 	rs232_putchar(char c)
  */
 int main(int argc, char **argv)
 {      
-	char c;
-	static int8_t mode = 0;
-	int16_t roll=0, pitch=0, yaw=0,lift=0;
-	int	axis[6];
-	int	button[12];
-	int tx_buffer[13];
+	char c;										/*Store byte of data received vis rs232 */
+	static int8_t mode = 0;											
+	int16_t roll=0, pitch=0, yaw=0,lift=0;							
+	int	axis[6];								/*Joystick axes values */
+	int	button[12];								/*Joystick buttons values*/
+	int tx_buffer[13];							/*Transmit buffer */
 	struct js_event js;
 	struct termios options;
 	int8_t start=0xFF; 
-	int8_t keyboard=0xF0;
-	int16_t crc=0x0000;
-	int flag_mode = 0;
-	int msec = 0, trigger = 14;
-	int r_msec = 0, r_trigger = 4;
+	int8_t keyboard=0xF0;						/*key press by user */
+	int16_t crc=0x0000;							/* store CRC of the transmit frame */
+	int flag_mode = 0;							/* Flag to check if aborted by user via Joystick */
+	int msec = 0, trigger = 14;					/* Clock to transmit frame every 14 ms*/
+	int r_msec = 0, r_trigger = 3;				/* Clock to receive byte every 3 ms*/
 	clock_t r_previous = clock();
 	clock_t previous = clock();
 	term_puts("\nTerminal program - Embedded Real-Time Systems\n");
 	term_puts("Type ^C to exit\n");
+    
+/*Open file for storing joystick values */
 
-	/*int fd;
+	/*	int fd;
         #define JS_DEV	"/dev/input/js0"
 	if ((fd = open(JS_DEV, O_RDONLY)) < 0) {
 		perror("joystick error");
@@ -251,23 +475,24 @@ int main(int argc, char **argv)
 	while ((c = rs232_getchar_nb()) != -1)
 		fputc(c,stderr);
 
-	/* send & receive
-	 */
+	
 
-		lift = 32767;
-		roll = 32767;
-		pitch = 32767;
-		yaw = 32767;
+		lift = 1000;
+		roll = 1000;
+		pitch = 1000;
+		yaw = 1000;
+		
 	for (;;)
 	{	
 	flag_mode = 0;		
 	uint8_t key_press=0;	
 	keyboard=0xF0;
 	uint8_t c = 0;
-	// input from joystick 
-
+	
+	/* input from joystick */
+/*
 	// non-blocking mode
-/*	 
+	 
 	fcntl(fd, F_SETFL, O_NONBLOCK);
 		
 			unsigned int	t, i;
@@ -291,9 +516,9 @@ int main(int argc, char **argv)
 			perror("\njs: error reading (EAGAIN)");
 			exit (1);
 		}		
-	
+		// Abort using Joystick
 		if(button[0]==1)
-			{mode= 1;
+			{mode= 1; 
 			flag_mode = 1;
 			}	
 		else 
@@ -304,13 +529,7 @@ int main(int argc, char **argv)
 		lift = axis[3];
 		}
 */
-       /*   for(lift=-32767;lift<32767;lift+=10000)
-		  	   for(roll=-32767;roll<32767;lift+=10000)
-			       for(pitch=-32767;pitch<32767;pitch+=10000)
-			  		for(yaw=-32767;yaw<32767;yaw+=10000)
-		{*/
-
-        //printf("%d|%d|%d|%d|\t\n",pitch,roll,yaw,lift);
+         /*clock to transmit frame every 14ms*/
 		clock_t current = clock();
  		clock_t difference=current-previous;
   		msec = difference * 1000 / CLOCKS_PER_SEC;
@@ -318,42 +537,38 @@ int main(int argc, char **argv)
 		if ( msec > trigger )
 		{
 			previous=current;
-
-
 	
-		//keyboard press 
+		/* keyboard press */
+		
 		if(flag_mode!=1) // does not take input from the keyboard if aborted in the joystick
 		{				
 				int temp[3];
 				for(int i=0; i<3; i++)
 				{temp[i]= getchar ();
-				//printf("temp[%d]=%d \t",i,temp[i]);
 				}
 				if(temp[0]== 0x1B && (temp[1])== 0x5B)
 					key_press = temp[2];
 				else 
 					key_press = temp[0];
-			        //printf("c=%d\n",c);
 				
 			switch (key_press)
 			{
-				case 0x30:
-
+				case 0x30: 			 //0 - safe mode
 					mode = 0;
 				break;
-				case 0x31:
+				case 0x31:			 //1 - panic mode
 					mode = 1;
 				break;
-				case 0x32:
+				case 0x32: 			 //2 - Manual mode
 					mode = 2;
 				break;
-				case 0x33:
+				case 0x33:			 //3 - Calibaration mode
 					mode = 3;
 				break;
-				case 0x34:
+				case 0x34:			 //4 - Yaw Control 
 					mode = 4;
 				break;
-				case 0x35:
+				case 0x35: 			 //5 - Full control
 					mode = 5;
 				break;
 				case 0x36:
@@ -365,53 +580,58 @@ int main(int argc, char **argv)
 				case 0x38:
 					mode = 8;
 				break;
-				case 0x1B://ecs
+				case 0x1B: 			   //ecs - abort
 					mode = 1;
 				break;
-				case 0x61: //a
+				case 0x61: 			   //a - lift up
 					keyboard = 0x00;
 				break;
-				case 0x7A: //z
+				case 0x7A: 			   //z - lift down
 					keyboard = 0x01;
 				break;
-				case 0x44: //left arrow
+				case 0x44: 			   //left arrow - Roll up
 					keyboard = 0x02;
 				break;
-				case 0x43: // right arrow
+				case 0x43:     		   //right arrow - Roll down
 					keyboard = 0x03;
 				break;
-				case 0x41: //up arrow
+				case 0x41: 			   //up arrow - Pitch down
 					keyboard = 0x04;
 				break;
-				case 0x42: // down arrow
+				case 0x42: 			   //down arrow - Pitch Up
 					keyboard = 0x05;
 				break;
-				case 0x71: //q
+				case 0x71:			   //q - Yaw down
 					keyboard = 0x06;
 				break;
-				case 0x77: // w
+				case 0x77: 			   //w - Yaw up
 					keyboard = 0x07;
 				break;
-				case 0x75:  //u
+				case 0x75: 			   //u - Increase P
 					keyboard = 0x08;
 				break;
-				case 0x6A: // j
+				case 0x6A: 			   // j - Decrease P
 					keyboard = 0x09;
 				break;
-				case 0x69: //i
+				case 0x69: 			   //i - Increase P1
 					keyboard = 0x0A;
 				break;
-				case 0x6B: //k
+				case 0x6B: 			   //k - Decrease P1
 					keyboard = 0x0B;
 				break;
-				case 0x6F: //o
+				case 0x6F: 			   //o - Increase P2
 					keyboard = 0x0C;
 				break;
-				case 0x6C: //l
+				case 0x6C:			   //l - Decrease P2
 					keyboard = 0x0D;
 				break;
+				case 0x66:             //f  (write to flash)
+					keyboard = 0x0E;
+				break;
+				case 0x72  :           //r (read from flash)
+					keyboard = 0x0F;
+				break;
 				default:
-					
 					keyboard = 0xF0;
 			}
 										
@@ -422,8 +642,10 @@ int main(int argc, char **argv)
 		}	
 
 		
-			//printf("mode =%d |KEYBOARD=%d \t\n",mode,keyboard);
-			// frame update
+/*---------------------------------------------------------
+ *Data format: | StartByte | Data | CRC1 | CRC2 | 13 bytes
+  ---------------------------------------------------------
+ */
 			
 			tx_buffer[0]= start;
 			tx_buffer[1]= mode;
@@ -438,40 +660,35 @@ int main(int argc, char **argv)
 			tx_buffer[10]= keyboard;			
 			
 			//update crc
-			crc=calc_crc(tx_buffer);      //calculate crc without LUT
+			crc=calc_crc(tx_buffer);      
 			tx_buffer[11]= (int8_t)crc;
 			tx_buffer[12]=(int8_t)(crc>>8);
 			
+		/* Transmit frame vis RS232 */ 	
 		for(int k=0; k<13; k++)
 		{
 			rs232_putchar(tx_buffer[k]);
-			//printf("tx[%d]=%d | \t ",k,tx_buffer[k]);
 		}
-
-
-		/*lift += 1000;
-		roll+= 1000;
-		pitch+=1000;
-		yaw+=1000;*/
-
-				
-
 	}
-
+		/*clock to receive 1 byte from the drone every 3ms*/
 		clock_t r_current = clock();
  		clock_t r_difference=r_current-r_previous;
   		r_msec = r_difference * 1000 / CLOCKS_PER_SEC;
-
 		if ( r_msec > r_trigger )
 		{
 			r_previous=r_current;	
-	if ((c = rs232_getchar_nb()) != -1)  //possible cause of delay
-	//if((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c>='0' && c<='9')||c=='\n'||c=='|'||c==' '||c=='-')
-    term_putchar(c);
+		
+		if ((c = rs232_getchar_nb()) != -1)  
+		{
+		#ifdef TELEMETRY
+		rs232_pc(c);
+		#else
+		if((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c>='0' && c<='9')||c=='\n'||c=='-'||c=='|')
+	    term_putchar(c);
+		#endif
 		}
-	
-	}
-					
+		}	
+	}					
 	term_exitio();
 	rs232_close();
 	term_puts("\n<exit>\n");

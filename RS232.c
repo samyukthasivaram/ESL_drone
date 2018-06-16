@@ -1,34 +1,37 @@
-#include "in4073.h"
-#include "RS232.h"
-#include "crc.h"
-#include <time.h>
-#include <stdint.h>
-#include <inttypes.h>
-#include <sys/time.h>
-#include <sys/types.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <stdio.h>
-#include <errno.h>
-#include <string.h>
-#include <sys/stat.h>
-
-#define DataSize 10
-#define POLY 0x8005
-
-/*---------------------------------------------------------
- *Data format: | StartByte | Data | CRC1 | CRC2 | 14 bytes
-  ---------------------------------------------------------
+/*-----------------------------------------------------------------------------------------------------------------
+ * - RS232.c
+ * 
+ * -This file is used to process the received frame from PC via RS232 and send frame to the PC via UART
+ *
+ * Developed and tested by Samyuktha Sivaram
+ * Embedded Software Lab
+ * Date - 16.06.2018
+ *-----------------------------------------------------------------------------------------------------------------
  */
 
-//CRC calculation without table
-int16_t calc_crc(int frame[])
 
-{
+#include "in4073.h"
+
+int8_t frame[DataSize];					/*payload received */
+uint8_t count=0;						/* count the number ofbytes received via RS232*/
+int rx_wrong[10];						/* temporary buffer to store data during header synchronisation*/
+int8_t StartByte=0xFF;					/* start byte of Pc to drone frame */
+static int8_t check1 = 0,check2 = 0;	/*store the 2 bytes of CRC received vis RS232 */
+
+/*------------------------------------------------------------
+ * Function calc_crc() - compute CRC for an array of values
+ * Return value - 2 bytes of calculated CRC
+ * Arguments : Frame[] - Array for which the CRC needs to be computed
+ * 			   Count - The number of elements in the array
+ * 			   start - The element from which the CRC needs to be computed
+ *------------------------------------------------------------
+ */
+int16_t calc_crc(int8_t frame[],int count,int start)
+{	
     int16_t crc,byte;
     crc = 0;
     
-    for (int i=0; i< 10; i++)
+    for (int i=start; i< count; i++)
     {
             byte=frame[i];
             crc ^=byte<<8;
@@ -42,9 +45,18 @@ int16_t calc_crc(int frame[])
     return crc;
 }
 
-bool check_crc(int8_t c1, int8_t c2, int q[])
+/*----------------------------------------------------------------------------------------------------------
+ * Function check_crc() - compute CRC for an array of values and check if it is equal to the received CRC 
+ * Return value - true if the received and calculated CRC are equal
+ *				- false if the received and calculated CRC are not equal
+ * Arguments : c1 - First byte of the received CRC
+ * 			   c2 - Second byte of the received CRC
+ * 			   q[]- The array of data for which the CRC needs to be computed
+ *----------------------------------------------------------------------------------------------------------
+ */
+bool check_crc(int8_t c1, int8_t c2, int8_t q[])
 {
-   int16_t w= calc_crc(q);
+   int16_t w= calc_crc(q,10,0);
    int16_t new_c = ((c2<<8) & 0xFF00) | (c1 & 0x00FF);
   if (w==new_c)
      return true;
@@ -52,24 +64,33 @@ bool check_crc(int8_t c1, int8_t c2, int q[])
     return false;
 }
 
-int frame[DataSize];
-uint8_t count=0;
-int rx_wrong[10];
-int8_t StartByte=0xFF;
-static int8_t check1 = 0,check2 = 0;	//store CRC
-
+/*---------------------------------------------------------
+ *Data format: | StartByte | Data | CRC1 | CRC2 | 13 bytes
+  ---------------------------------------------------------
+ */
+ 
+/*----------------------------------------------------------------------------------------------------------
+ * Function rs232_read() - Decode the data received from drone via the RS232 
+ *                        using state machine and store the values 
+ * Return value - void
+ * Arguments : Null
+ *----------------------------------------------------------------------------------------------------------
+*/
 void rs232_read()
 {
 	static int state = 0;
 	int8_t data = 0;
 	int i=0,j = 0;	
 
-		
+		/* receive data byte from PC */
 		if(rx_queue.count>0)
-	{		data = dequeue(&rx_queue); rec_counter=0;
-			//printf("%d| \n ",data);
+			{		
+			data = dequeue(&rx_queue); 
+			rec_counter=0;
+			
 		switch(state)
 		{
+			/* State 0 - Initial state till the start byte is received*/
 			case 0:
 				if(data == StartByte)
 				{
@@ -78,6 +99,7 @@ void rs232_read()
 				else	state = 0;
 				break;
 				
+			/*State 1 - Receive the payload and the first byte of CRC */	
 			case 1:
 				if(count >=DataSize)
 				{
@@ -93,7 +115,7 @@ void rs232_read()
 				}
 				break;
 			
-
+			/*State 2 - Receive the second byte of CRC and store the payload if CRC matches*/
 			case 2:
 				check2 = data;
 				if(check_crc(check1,check2,frame))//check CRC <TO DO>
@@ -101,7 +123,9 @@ void rs232_read()
 					state = 0;packet_drop=0;
 					store_data(frame);
 				}
-				else    //if CRC is wrong check for start byte to start over
+				
+				/*if CRC is wrong check do header synchronisation*/
+				else    
 				{    
 					if(check1 == StartByte)
 					{
@@ -133,25 +157,27 @@ void rs232_read()
 							break;
 						}
 					if(crcflag==0) packet_drop++;
-
 					}
-
-
 				}
-
-				break;
-			
+				break;		
 			default: printf("deafult case");
 					break;
 		}
 	}
+	
 	else rec_counter++;      //to check continuous communication
 	
 }
 
-void store_data(int p[DataSize])
-{
 
+/*----------------------------------------------------------------------------------------------------------
+ * Function store_data() - Input lift, roll, pitch, yaw, mode and key press from the PC to be stored
+ * Return value - void
+ * Arguments : p[] - Payload 
+ *----------------------------------------------------------------------------------------------------------
+*/
+void store_data(int8_t p[DataSize])
+{
 	int16_t temp_lift, temp_roll, temp_pitch, temp_yaw;
 
 	mode= p[0];	
@@ -161,103 +187,143 @@ void store_data(int p[DataSize])
 	temp_yaw = (p[8]<<8)+p[7];	
 	keyboard = p[9];
 
+	/*keyboard offset */
 	switch (keyboard)
 	{
-		case 0://lift up 'a'
-			lift_key+=1;
-			
-			break;
-		case 1://lift down 'z'
-			lift_key-=1;
-			
-			break;
-		case 2://roll up '<'
-			roll_key+=1;
-			break;
-		case 3://roll down '>'
-		roll_key-=1;
-			break;
-		case 4://pitch down '^'
-			pitch_key-=1;
-			break;
-		case 5://pitch up 'down arrow'
-		pitch_key+=1;
-			break;
-		case 6:// yaw clockwise 'q'
+		case 0:					//a - lift up
+				lift_key+=1;
+				break;
+		case 1:					//z - lift down
+				lift_key-=1;	
+				break;
+		case 2:					//left arrow - Roll up
+				roll_key+=1;
+				break;
+		case 3:					//right arrow - Roll down
+				roll_key-=1;
+				break;
+		case 4:					//up arrow - Pitch down
+				pitch_key-=1;
+				break;
+		case 5:					//down arrow - Pitch Up
+				pitch_key+=1;
+				break;
+		case 6:					//q - Yaw down
 				yaw_key+=1;
 				break;
-		case 7://yaw ccw  'w'
+		case 7:					//w - Yaw up
 			    yaw_key-=1;
 				break;
-		case 8: p_yaw+=1;break; // 'u'
-		case 9: p_yaw-=1;       //'j'
-				if(p_yaw<1) p_yaw=1;
+		case 8: 				//u - Increase P
+				p_yaw+=1;
 				break;
-		case 10:P1+=1;break;   //'i'
-		case 11:P1-=1;			//'k'
-				if(P1<1) P1=1;
+		case 9: 				// j - Decrease P
+				p_yaw-=1;     
+				if(p_yaw<1) 
+				p_yaw=1;
 				break;
-		case 12:P2+=1;break; //'o'
-		case 13:P2-=1;		//'l'
-				if(P2<1) P2=1;
+		case 10:				//i - Increase P1
+				P1+=1;
+				break;   
+		case 11:				//k - Decrease P1
+				P1-=1;			
+				if(P1<1) 
+				P1=1;
+				break;
+		case 12:				//o - Increase P2
+				P2+=1;
+				break; 
+		case 13:P2-=1;			//l - Decrease P2
+				if(P2<1) 
+				P2=1;
+				break;
+		case 14:     			//f  (write to flash)
+				flag_logging = 1;
+				break;
+		case 15: 				//r (read from flash)
+				if(mode==0)
+				read_from_flash();
 				break;
 	}
 	
-	lift = ((temp_lift+lift_key)>>6)+512;
-	roll = ((temp_roll+roll_key)>>6);
-	pitch = ((temp_pitch+pitch_key)>>6);
-	yaw = ((temp_yaw+yaw_key)>>6);
+	/* lift, roll, pitch, yaw are scaled down by dividing by 64 */
+	lift = (-1*((temp_lift)>>6))+lift_key+507;
+	roll = ((temp_roll)>>6)+roll_key;
+	pitch = ((temp_pitch)>>6)+pitch_key;
+	yaw = ((temp_yaw)>>6)+yaw_key;
 	
-	//printf("man=%d|%d|%d|%d|lift=%d|roll=%d|pitch=%d|yaw=%d|\n",temp_lift, temp_roll, temp_pitch, temp_yaw,lift,roll,pitch,yaw);
-	//printf("mode=%d|key=%d\n",mode,keyboard);
-	//printf("lift_key=%d\n",lift_key);
-
 }
 
-//transit frame - ae[0] | ae[1] | ae[2] | ae[3] | bat_volt | phi | theta | psi | sp | sq | sr
-/*void rs232_write()
+
+/*----------------------------------------------------------------------------------------------------------
+ * Function rs232_write() - send the necessary data vis UART to PC for telemetry
+ * Return value - void
+ * Arguments : Null
+ *----------------------------------------------------------------------------------------------------------
+*/
+void rs232_write()
 {
-	int8_t tx_buff[22];
+	int8_t tx_buff[43];					
 	int16_t bat_volt_temp = bat_volt - 32767;
+	
 	int16_t crc;
 	
-	tx_buff[0] 		= 0xFF;
-	tx_buff[1] 		= (int8_t)ae[0];
-	tx_buff[2] 		= (int8_t)(ae[0]>>8);
-	tx_buff[3] 		= (int8_t)ae[1];
-	tx_buff[4] 		= (int8_t)(ae[1]>>8);
-	tx_buff[5] 		= (int8_t)ae[2];
-	tx_buff[6] 		= (int8_t)(ae[2]>>8);
-	tx_buff[7] 		= (int8_t)ae[3];
-	tx_buff[8] 		= (int8_t)(ae[3]>>8);
-	tx_buff[9] 		= (int8_t)bat_volt_temp;
-	tx_buff[10]		 = (int8_t)(bat_volt_temp>>8);
-	tx_buff[11]		 = (int8_t)phi;
-	tx_buff[12]		 = (int8_t)(phi>>8);
-	tx_buff[13]		 = (int8_t)theta;
-	tx_buff[14]		 = (int8_t)(theta>>8);
-	tx_buff[15]		 = (int8_t)psi;
-	tx_buff[16]		 = (int8_t)(psi>>8);
-	tx_buff[17]		 = (int8_t)sp;
-	tx_buff[18]		 = (int8_t)(sp>>8);
-	tx_buff[19]		 = (int8_t)sq;
-	tx_buff[20]		 = (int8_t)(sq>>8);
-	tx_buff[21]		 = (int8_t)sr;
-	tx_buff[22]      = (int8_t)(sr>>8);
-			
-	crc = calc_crc(tx_buff);
+/*transmit frame telemetry - ae[0] | ae[1] | ae[2] | ae[3] | bat_volt | phi | theta | psi | sp | sq | sr | sax | say | saz | lift | roll | pitch | yaw | P | P1 | p2*/
 	
-	tx_buff[23]= (int8_t)crc;
-	tx_buff[24]= (int8_t)(crc>>8);
+	tx_buff[0] 		= 0xFA;
+	tx_buff[1] 		= mode;
+	tx_buff[2] 		= (int8_t)ae[0];
+	tx_buff[3] 		= (int8_t)(ae[0]>>8);
+	tx_buff[4] 		= (int8_t)ae[1];
+	tx_buff[5] 		= (int8_t)(ae[1]>>8);
+	tx_buff[6] 		= (int8_t)ae[2];
+	tx_buff[7] 		= (int8_t)(ae[2]>>8);
+	tx_buff[8] 		= (int8_t)ae[3];
+	tx_buff[9] 		= (int8_t)(ae[3]>>8);
+	tx_buff[10]		= (int8_t)bat_volt_temp;
+	tx_buff[11]		 = (int8_t)(bat_volt_temp>>8);
+	tx_buff[12]		 = (int8_t)phi;
+	tx_buff[13]		 = (int8_t)(phi>>8);
+	tx_buff[14]		 = (int8_t)theta;
+	tx_buff[15]		 = (int8_t)(theta>>8);
+	tx_buff[16]		 = (int8_t)psi;
+	tx_buff[17]		 = (int8_t)(psi>>8);
+	tx_buff[18]		 = (int8_t)sp;
+	tx_buff[19]		 = (int8_t)(sp>>8);
+	tx_buff[20]		 = (int8_t)sq;
+	tx_buff[21]		 = (int8_t)(sq>>8);
+	tx_buff[22]      = (int8_t)sr;
+	tx_buff[23]		 = (int8_t)(sr>>8);
+	tx_buff[24]      = (int8_t)sax;
+	tx_buff[25]      = (int8_t)(sax >> 8);
+	tx_buff[26]      = (int8_t)say ;
+	tx_buff[27]      = (int8_t)(say >> 8) ;
+	tx_buff[28]      = (int8_t)saz;
+	tx_buff[29]      = (int8_t)(saz >> 8) ;
+	tx_buff[30]      = (int8_t)lift;
+	tx_buff[31]      = (int8_t)(lift >> 8);
+	tx_buff[32]      = (int8_t)roll ;
+	tx_buff[33]      = (int8_t)(roll >> 8);
+	tx_buff[34]      = (int8_t)pitch;
+	tx_buff[35]      = (int8_t)(pitch >> 8);
+	tx_buff[36]	     = (int8_t)yaw;
+	tx_buff[37]      = (int8_t)(yaw >> 8);
+	tx_buff[38]		 = (int8_t) p_yaw;
+	tx_buff[39] 	 = (int8_t)P1;
+	tx_buff[40]		 = (int8_t) P2;
+
+	//update crc
+	crc = calc_crc(tx_buff,41,1);
 	
+	tx_buff[41]= (int8_t)crc;
+	tx_buff[42]= (int8_t)(crc>>8);
 	
-	for(int i=0; i<25; i++)
-		uart_put(tx_buff[i]);
-	
-	
+	/* transmit byte via UART */
+	for(int i=0; i<43; i++)
+		uart_put(tx_buff[i]);	
 	
 }
-*/
+
 
 
 

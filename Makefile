@@ -43,9 +43,8 @@ $(abspath ./in4073.c) \
 $(abspath ./RS232.c) \
 $(abspath ./control.c) \
 $(abspath ./safety.c) \
-$(abspath ./yaw_control.c) \
-$(abspath ./manual_mode.c) \
-$(abspath ./callibration.c) \
+$(abspath ./Butterworth.c) \
+$(abspath ./Kalman.c) \
 $(abspath ./data_logging.c) \
 $(abspath ./drivers/gpio.c) \
 $(abspath ./drivers/timers.c) \
