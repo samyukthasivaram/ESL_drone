@@ -6,7 +6,9 @@
 void rs232_write();
 void rs232_init(void);
 void rs232_read();
-bool check_CRC(int8_t c1, int8_t c2, int q[]);
-void store_data(int p[DataLen]);
+bool check_CRC(int8_t c1, int8_t c2, int8_t q[]);
+void store_data(int8_t p[DataLen]);
+int16_t calc_crc(int8_t frame[],int count,int start);
+
 
 #endif

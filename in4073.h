@@ -21,7 +21,7 @@
 #include "ml.h"
 #include "app_util_platform.h"
 #include <math.h>
-
+#include "RS232.h"
 #define RED		22
 #define YELLOW		24
 #define GREEN		28
@@ -47,12 +47,24 @@ uint8_t p_yaw,P1,P2;
 int16_t roll,pitch,yaw,lift,lift_key,roll_key,pitch_key,yaw_key;
 int16_t rollup,pitchup,yawup,liftup,rolldown,pitchdown,yawdown,liftdown;
 
+
+//filters
+int mul(float x, float y);
+int16_t r_bf,p_kalman,q_kalman,phi_kalman,theta_kalman;
+int	float2fix(double x);
+void butterWorth_2ndOrder();
+void butterWorth_1stOrder();
+void kalmanFilter();
 int8_t keyboard,mode,prev_mode;
 //int8_t p_yaw;
 // Control
 int16_t motor[4],ae[4];
 void run_filters_and_control();
 void yaw_control();
+void raw_mode();
+
+//data logging
+int flag_logging;
 
 // Timers
 #define TIMER_PERIOD	50 //50ms=20Hz (MAX 23bit, 4.6h)
@@ -124,6 +136,7 @@ bool flash_read_bytes(uint32_t address, uint8_t *buffer, uint32_t count);
 
 void save_data_in_flash();
 void update_data();
+void read_from_flash();
 uint8_t data_buffer[51];
 
 // BLE

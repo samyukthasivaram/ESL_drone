@@ -8,7 +8,8 @@ uint16_t panic_speed = 200;
 int  trigger_p = 1000000;
 uint32_t difference_p;
 
-
+if(lift>250)
+{
 while(panic_speed>0)
 {
 for(int mo=0;mo<4;mo++)
@@ -20,6 +21,8 @@ do {
 } while ( difference_p < trigger_p );
 panic_speed-=50;
 }
+}
+
 //printf("Panic Mode\n");
 
 safe_mode();
