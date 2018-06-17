@@ -15,7 +15,8 @@
 
 int serial_device = 0;
 int fd_RS232;  							/*file for writing joystick values - 'data.csv' */
-FILE *fp; 								/*file for data logging - 'data.csv' */
+FILE *fp;								/*file for data logging - 'data.csv' */
+FILE *ftele;
 static int Datasize=0; 					/*size of payload for data processing*/
 int frame[51];							/* payload received */
 uint8_t count=0;						/* count the number of bytes received via RS232*/
@@ -220,8 +221,25 @@ void log_data(int read_buffer[50])
 			r_p1 = read_buffer[38]>>2;
 			r_p2 = read_buffer[39]>>2;
 			
+	
+	
+	
 			printf("tele:%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|\n",r_mode,r_ae[0],r_ae[1],r_ae[2],r_ae[3],r_bat,r_phi,r_theta,r_psi,r_sp,r_sq,r_sr,r_sax,r_say,r_saz,r_lift,r_roll,r_pitch,r_yaw,r_p,r_p1,r_p2);
-	}			
+	ftele = fopen("data_print.txt", "a");
+	if (!ftele) 
+		{
+		printf("creat file error");
+		}
+	else 
+		{
+		fprintf( ftele,"%d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d\n ",r_mode,r_ae[0],r_ae[1],r_ae[2],r_ae[3],r_bat,r_phi,r_theta,r_psi,r_sp,r_sq,r_sr,r_sax,r_say,r_saz,r_lift,r_roll,r_pitch,r_yaw,r_p,r_p1,r_p2);
+		fprintf(ftele, "%s","\n");
+		fclose(ftele);
+		}
+		
+		
+	}	
+
 }	
 		
 /*----------------------------------------------------------------------------------------------------------
@@ -421,7 +439,7 @@ int main(int argc, char **argv)
 	int16_t crc=0x0000;							/* store CRC of the transmit frame */
 	int flag_mode = 0;							/* Flag to check if aborted by user via Joystick */
 	int msec = 0, trigger = 14;					/* Clock to transmit frame every 14 ms*/
-	int r_msec = 0, r_trigger = 1;				/* Clock to receive byte every 3 ms*/
+	int r_msec = 0, r_trigger = 4;				/* Clock to receive byte every 3 ms*/
 	clock_t r_previous = clock();
 	clock_t previous = clock();
 	term_puts("\nTerminal program - Embedded Real-Time Systems\n");
@@ -644,9 +662,6 @@ int main(int argc, char **argv)
 		
 		if ((c = rs232_getchar_nb()) != -1)  
 		{
-		#ifdef TELEMETRY
-		rs232_pc(c);
-		#else
 		/*clock to receive 1 byte from the drone every 3ms*/
 		clock_t r_current = clock();
  		clock_t r_difference=r_current-r_previous;
@@ -657,6 +672,10 @@ int main(int argc, char **argv)
 		if((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c>='0' && c<='9')||c=='\n'||c=='-'||c=='|')
 	    term_putchar(c);
 		}
+		#ifdef TELEMETRY
+		rs232_pc(c);
+		#else
+		
 		#endif
 		}	
 	}					
