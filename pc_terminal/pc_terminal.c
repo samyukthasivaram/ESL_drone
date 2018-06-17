@@ -71,17 +71,16 @@ int check_crc(int8_t c1, int8_t c2, int q[])
 }
 
 /*----------------------------------------------------------------------------------------------------------
- * Function rs232_pc() - Decode the data received from drone via the UART 
+ * Function rs232_pc() - Decode the data received from drone via the RS232 
  *                        using state machine (telemetry and logging)
  * Return value - void
- * Arguments : c - 1 byte of the received data via UART
+ * Arguments : c - 1 byte of the received data via RS232
  *----------------------------------------------------------------------------------------------------------
 */
 
 void rs232_pc(uint8_t c)
 {
-	static int state = 0;
-	int i=0,j = 0;	
+	static int state = 0;	
 	
 		switch(state)
 		{
@@ -126,40 +125,9 @@ void rs232_pc(uint8_t c)
 					log_data(frame);
 				}
 				
-				/*if CRC is wrong check do header synchronisation*/
+				/*if CRC is wrong go to state 0*/
 				else    
-				{   state=0; 
-					if(check1 == StartByte)
-					{
-						frame[0] = check2;
-						count = 1;
-						state = 1;
-					}
-					else if(check2 == StartByte)
-					{
-						count = 0;
-						state = 1;
-					}
-					else
-					{	
-						for(i=0; i<10; i++)  
-						{
-							if(frame[i] == StartByte)
-							{	
-								int k=0;
-								for(j=i+1; j<10; j++)
-									rx_wrong[k++] = frame[j];
-								rx_wrong[k++] = check1;
-								rx_wrong[k++] = check2;
-								state = 1;
-								for(j=0; j<k; j++)
-									frame[j]=rx_wrong[j];
-							}
-							else	state = 0;
-							break;
-						}
-					}
-				}
+				   state=0;  
 				break;			
 			default: printf("deafult case");
 					break;
@@ -179,47 +147,48 @@ void log_data(int read_buffer[50])
 	uint32_t r_time=0,r_pressure=0,r_temperature=0;
 	int8_t r_mode=0, r_incoming=0;
 	int16_t r_phi=0, r_theta=0, r_psi=0, r_sax=0, r_say=0, r_saz=0, r_sp=0, r_sq=0, r_sr=0, r_lift=0,r_roll=0,r_pitch=0,r_yaw=0;
-	int16_t r_ae[4]={0}, r_bat=0, r_p=0, r_p1=0, r_p2=0;
+	int16_t r_ae[4]={0}, r_p=0, r_p1=0, r_p2=0;
+	uint16_t  r_bat=0;
 	
 	/* Data for Data logging*/		
 	if(Datasize==51)
 	{		
-			r_time = (uint32_t)(read_buffer[0] << 24) | (uint32_t)(read_buffer[1] << 16) | (uint32_t)(read_buffer[2] << 8) |(uint32_t)read_buffer[3];
+			r_time = ((uint32_t)(read_buffer[0] << 24)&(0xFF000000)) + ((uint32_t)(read_buffer[1] << 16)&(0x00FF0000)) + ((uint32_t)(read_buffer[2] << 8)&(0x0000FF00)) +((uint32_t)read_buffer[3]&(0x000000FF));
 			r_mode = read_buffer[4];
 			r_incoming = read_buffer[5];//keyboard
-			r_phi = (read_buffer[6] << 8 )+ read_buffer[7];
-			r_theta = (read_buffer[8] << 8) + read_buffer[9];
-			r_psi = (read_buffer[10] << 8 )+ read_buffer[11];
-			r_sax = (read_buffer[12] << 8 )+ read_buffer[13];
-			r_say =( read_buffer[14] << 8) + read_buffer[15];
-			r_saz = (read_buffer[16] << 8 )+ read_buffer[17];
-			r_sp= (read_buffer[18]<< 8) + read_buffer[19];
-			r_sq = (read_buffer[20] << 8 )+ read_buffer[21];
-			r_sr = (read_buffer[22] << 8) + read_buffer[23];
-			r_pressure = (uint32_t)(read_buffer[24] << 24) | (uint32_t)(read_buffer[25] << 16) |(uint32_t)(read_buffer[26] << 8) | (uint32_t)read_buffer[27];
-			r_temperature = (uint32_t)(read_buffer[28] << 24)| (uint32_t)(read_buffer[29] << 16) | (uint32_t)(read_buffer[30] << 8 )|(uint32_t)read_buffer[31];
-			r_ae[0] = (read_buffer[32] << 8) + read_buffer[33];
-			r_ae[1] = (read_buffer[34] << 8) + read_buffer[35];
-			r_ae[2] = (read_buffer[36] << 8) + read_buffer[37];
-			r_ae[3] = (read_buffer[38] << 8) + read_buffer[39];	
-			r_lift = (read_buffer[40] << 8) + read_buffer[41];
-			r_roll = (read_buffer[42] << 8) + read_buffer[43];
-			r_pitch = (read_buffer[44] << 8) + read_buffer[45];
-			r_yaw = (read_buffer[46] << 8) + read_buffer[47];
+			r_phi = ((read_buffer[6] << 8 )&(0xFF00))+ (read_buffer[7]& 0x00FF);
+			r_theta = ((read_buffer[8] << 8)&(0xFF00)) + (read_buffer[9]& 0x00FF);
+			r_psi = ((read_buffer[10] << 8 )&(0xFF00))+ (read_buffer[11]& 0x00FF);
+			r_sax = ((read_buffer[12] << 8 )&(0xFF00))+ (read_buffer[13]& 0x00FF);
+			r_say =( (read_buffer[14] << 8)&(0xFF00)) + (read_buffer[15]& 0x00FF);
+			r_saz = ((read_buffer[16] << 8 )&(0xFF00))+ (read_buffer[17]& 0x00FF);
+			r_sp= ((read_buffer[18]<< 8)&(0xFF00))+(read_buffer[19]& 0x00FF);
+			r_sq = ((read_buffer[20] << 8 )&(0xFF00))+ (read_buffer[21]& 0x00FF);
+			r_sr = ((read_buffer[22] << 8) &(0xFF00))+ (read_buffer[23]& 0x00FF);
+			r_pressure = ((uint32_t)(read_buffer[24] << 24)&(0xFF000000)) + ((uint32_t)(read_buffer[25] << 16)&(0x00FF0000)) + ((uint32_t)(read_buffer[26] << 8)&(0x0000FF00)) +((uint32_t)read_buffer[27]&(0x000000FF));
+			r_temperature = ((uint32_t)(read_buffer[28] << 24)&(0xFF000000)) + ((uint32_t)(read_buffer[29] << 16)&(0x00FF0000)) + ((uint32_t)(read_buffer[30] << 8)&(0x0000FF00)) +((uint32_t)read_buffer[31]&(0x000000FF));
+			r_ae[0] = ((read_buffer[32] << 8)&(0xFF00)) + (read_buffer[33]& 0x00FF);
+			r_ae[1] = ((read_buffer[34] << 8)&(0xFF00)) + (read_buffer[35]& 0x00FF);
+			r_ae[2] = ((read_buffer[36] << 8)&(0xFF00)) + (read_buffer[37]& 0x00FF);
+			r_ae[3] = ((read_buffer[38] << 8)&(0xFF00)) + (read_buffer[39]& 0x00FF);	
+			r_lift = ((read_buffer[40] << 8)&(0xFF00)) + (read_buffer[41]& 0x00FF);
+			r_roll = ((read_buffer[42] << 8)&(0xFF00)) + (read_buffer[43]& 0x00FF);
+			r_pitch = ((read_buffer[44] << 8)&(0xFF00)) + (read_buffer[45]& 0x00FF);
+			r_yaw = ((read_buffer[46] << 8)&(0xFF00)) + (read_buffer[47]& 0x00FF);
 			r_p = read_buffer[48];
-			r_p1 = read_buffer[49];
-			r_p2 = read_buffer[50];
+			r_p1 = read_buffer[49]>>2;
+			r_p2 = read_buffer[50]>>2;
 
-			printf("log:%10ld|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%10ld|%10ld|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|\n",r_time,r_mode,r_incoming,r_phi,r_theta,r_psi,r_sax,r_say,r_saz,r_sp,r_sq,r_sr,r_pressure,r_temperature,r_ae[0],r_ae[1],r_ae[2],r_ae[3],r_lift,r_roll,r_pitch,r_yaw,r_p,r_p1,r_p2);
+			printf("log:%10u|%10u|%10u|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|\n",r_time,r_pressure,r_temperature,r_mode,r_incoming,r_phi,r_theta,r_psi,r_sax,r_say,r_saz,r_sp,r_sq,r_sr,r_ae[0],r_ae[1],r_ae[2],r_ae[3],r_lift,r_roll,r_pitch,r_yaw,r_p,r_p1,r_p2);
 		
 			fp = fopen("data.csv", "a");
 			if (!fp) 
 			{
-				printf("creat file error");
+				printf("create file error");
 			}
 			else 
 			{			
-				fprintf(fp,"%10ld,%10ld,%10ld,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d",r_time,r_pressure,r_temperature,r_mode,r_incoming,r_phi,r_theta,r_psi,r_sax,r_say,r_saz,r_sp,r_sq,r_sr,r_ae[0],r_ae[1],r_ae[2],r_ae[3],r_lift,r_roll,r_pitch,r_yaw,r_p,r_p1,r_p2);
+				fprintf(fp,"%10u,%10u,%10u,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d",r_time,r_pressure,r_temperature,r_mode,r_incoming,r_phi,r_theta,r_psi,r_sax,r_say,r_saz,r_sp,r_sq,r_sr,r_ae[0],r_ae[1],r_ae[2],r_ae[3],r_lift,r_roll,r_pitch,r_yaw,r_p,r_p1,r_p2);
 			    fprintf(fp, "%s","\n");
 				fclose(fp);
 			}
@@ -229,27 +198,27 @@ void log_data(int read_buffer[50])
 	else if(Datasize==40)
 	{
 			r_mode = read_buffer[0];
-			r_ae[0] = (read_buffer[2] << 8) | read_buffer[1];
-			r_ae[1] = (read_buffer[4] << 8) | read_buffer[3];
-			r_ae[2] = (read_buffer[6] << 8) | read_buffer[5];
-			r_ae[3] = (read_buffer[8] << 8) | read_buffer[7];	
-			r_bat = (read_buffer[10] << 8) | read_buffer[9];
-			r_phi = (read_buffer[12] << 8 )| read_buffer[11];
-			r_theta = (read_buffer[14] << 8) | read_buffer[13];
-			r_psi = (read_buffer[16] << 8 )| read_buffer[15];
-			r_sp= (read_buffer[18]<< 8) | read_buffer[17];
-			r_sq = (read_buffer[20] << 8 )| read_buffer[19];
-			r_sr = (read_buffer[22] << 8) | read_buffer[21];
-			r_sax = (read_buffer[24] << 8 )| read_buffer[23];
-			r_say =( read_buffer[26] << 8) | read_buffer[25];
-			r_saz = (read_buffer[28] << 8 )| read_buffer[27];
-			r_lift = (read_buffer[30] << 8) | read_buffer[29];
-			r_roll = (read_buffer[32] << 8) | read_buffer[31];
-			r_pitch = (read_buffer[34] << 8) | read_buffer[33];
-			r_yaw = (read_buffer[36] << 8) | read_buffer[35];
+			r_ae[0] = ((read_buffer[2] << 8)&(0xFF00)) + (read_buffer[1]& 0x00FF);
+			r_ae[1] = ((read_buffer[4] << 8)&(0xFF00)) + (read_buffer[3]& 0x00FF);
+			r_ae[2] = ((read_buffer[6] << 8)&(0xFF00)) + (read_buffer[5]& 0x00FF);
+			r_ae[3] = ((read_buffer[8] << 8)&(0xFF00)) + (read_buffer[7]& 0x00FF);	
+			r_bat = ((read_buffer[10] << 8)&(0xFF00)) + (read_buffer[9]& 0x00FF);
+			r_phi = ((read_buffer[12] << 8 )&(0xFF00))+ (read_buffer[11]& 0x00FF);
+			r_theta = ((read_buffer[14] << 8)&(0xFF00)) + (read_buffer[13]& 0x00FF);
+			r_psi = ((read_buffer[16] << 8 )&(0xFF00))+ (read_buffer[15]& 0x00FF);
+			r_sp= ((read_buffer[18]<< 8) &(0xFF00))+ (read_buffer[17]& 0x00FF);
+			r_sq = ((read_buffer[20] << 8 )&(0xFF00))+ (read_buffer[19]& 0x00FF);
+			r_sr = ((read_buffer[22] << 8)&(0xFF00)) + (read_buffer[21]& 0x00FF);
+			r_sax = ((read_buffer[24] << 8 )&(0xFF00))+ (read_buffer[23]& 0x00FF);
+			r_say =( (read_buffer[26] << 8)&(0xFF00)) + (read_buffer[25]& 0x00FF);
+			r_saz = ((read_buffer[28] << 8 )&(0xFF00))+ (read_buffer[27]& 0x00FF);
+			r_lift = ((read_buffer[30] << 8)&(0xFF00)) + (read_buffer[29]& 0x00FF);
+			r_roll = ((read_buffer[32] << 8)&(0xFF00)) + (read_buffer[31]& 0x00FF);
+			r_pitch = ((read_buffer[34] << 8)&(0xFF00)) + (read_buffer[33]& 0x00FF);
+			r_yaw = ((read_buffer[36] << 8)&(0xFF00))+ (read_buffer[35]& 0x00FF);
 			r_p = read_buffer[37];
-			r_p1 = read_buffer[38];
-			r_p2 = read_buffer[39];
+			r_p1 = read_buffer[38]>>2;
+			r_p2 = read_buffer[39]>>2;
 			
 			printf("tele:%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|\n",r_mode,r_ae[0],r_ae[1],r_ae[2],r_ae[3],r_bat,r_phi,r_theta,r_psi,r_sp,r_sq,r_sr,r_sax,r_say,r_saz,r_lift,r_roll,r_pitch,r_yaw,r_p,r_p1,r_p2);
 	}			
@@ -439,7 +408,7 @@ int 	rs232_putchar(char c)
  */
 int main(int argc, char **argv)
 {      
-	char c;										/*Store byte of data received vis rs232 */
+	char c;										/*Store byte of data received via rs232 */
 	static int8_t mode = 0;											
 	int16_t roll=0, pitch=0, yaw=0,lift=0;							
 	int	axis[6];								/*Joystick axes values */
@@ -452,7 +421,7 @@ int main(int argc, char **argv)
 	int16_t crc=0x0000;							/* store CRC of the transmit frame */
 	int flag_mode = 0;							/* Flag to check if aborted by user via Joystick */
 	int msec = 0, trigger = 14;					/* Clock to transmit frame every 14 ms*/
-	int r_msec = 0, r_trigger = 3;				/* Clock to receive byte every 3 ms*/
+	int r_msec = 0, r_trigger = 1;				/* Clock to receive byte every 3 ms*/
 	clock_t r_previous = clock();
 	clock_t previous = clock();
 	term_puts("\nTerminal program - Embedded Real-Time Systems\n");
@@ -473,14 +442,15 @@ int main(int argc, char **argv)
 	/* discard any incoming text
 	 */
 	while ((c = rs232_getchar_nb()) != -1)
-		fputc(c,stderr);
-
+		{
+			fputc(c,stderr);
+		}
 	
 
-		lift = 1000;
-		roll = 1000;
-		pitch = 1000;
-		yaw = 1000;
+	lift = 1000;
+	roll = 1000;
+	pitch = 1000;
+	yaw = 1000;
 		
 	for (;;)
 	{	
@@ -664,29 +634,30 @@ int main(int argc, char **argv)
 			tx_buffer[11]= (int8_t)crc;
 			tx_buffer[12]=(int8_t)(crc>>8);
 			
-		/* Transmit frame vis RS232 */ 	
+		/* Transmit frame via RS232 */ 	
 		for(int k=0; k<13; k++)
 		{
 			rs232_putchar(tx_buffer[k]);
 		}
 	}
-		/*clock to receive 1 byte from the drone every 3ms*/
-		clock_t r_current = clock();
- 		clock_t r_difference=r_current-r_previous;
-  		r_msec = r_difference * 1000 / CLOCKS_PER_SEC;
-		if ( r_msec > r_trigger )
-		{
-			r_previous=r_current;	
+			
 		
 		if ((c = rs232_getchar_nb()) != -1)  
 		{
 		#ifdef TELEMETRY
 		rs232_pc(c);
 		#else
+		/*clock to receive 1 byte from the drone every 3ms*/
+		clock_t r_current = clock();
+ 		clock_t r_difference=r_current-r_previous;
+  		r_msec = r_difference * 1000 / CLOCKS_PER_SEC;
+		if ( r_msec > r_trigger )
+		{
+			r_previous=r_current;
 		if((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c>='0' && c<='9')||c=='\n'||c=='-'||c=='|')
 	    term_putchar(c);
-		#endif
 		}
+		#endif
 		}	
 	}					
 	term_exitio();

@@ -29,6 +29,7 @@ int main(void)
 	baro_init();
 	spi_flash_init();
 	ble_init();
+	/*Intialisation of flags and global variables*/
 	keyboard=0xF0;
 	static int state_mode=0,panic_flag=0,calib_flag=0;
 	uint32_t counter = 0;
@@ -36,117 +37,115 @@ int main(void)
 	prev_mode=0;
 	int trigger = 300000;
 	uint32_t previous = get_time_us();
-	p_yaw=10;P1=40;P2=10;packet_drop=0;rec_counter=0;
+	p_yaw=10;P1=40;P2=40;
+	packet_drop=0;rec_counter=0;
 	lift_key=0;roll_key=0;pitch_key=0;yaw_key=0;
 	flag_logging = 0;calib_flag=0;
 	for(int i=0;i<51;i++)
 		data_buffer[i]=0;	
 
+	/*Control Loop*/
 	while (!demo_done)
 	
 	{	
 		// start_fullloop = get_time_us();
 		//  start_rstime = get_time_us();
 		rs232_read();
-	 //stop_rstime = get_time_us() - start_rstime ;
-
-		//process_key(keyboard);
+	 	//stop_rstime = get_time_us() - start_rstime ;
 		if(keyboard!=0xF0) keyboard=0xF0;
-
-kalmanFilter();
-butterWorth_2ndOrder();
-
-
-//start_controltime = get_time_us();
-	switch(state_mode)
-	{case 0: 
-			 safe_mode(); 
-			// if(roll!=0||pitch!=0||yaw!=0||lift!=0)
-	         //{//printf("Warning: Illegal Initial conditions");
-			 //state_mode=0;}
-			// else if (bat_volt<1100)
-			 //{printf("Low battery");
-			 //state_mode=0;}
-			  if(mode==0||((mode==1)&&(panic_flag==1))||(calib_flag==1 && mode==3))
-			 state_mode=0;
-			 else if(mode==1&&panic_flag==0)
-			 demo_done=true;
-			 else if(mode>=2&&mode<=8)
-			 {state_mode=1;prev_mode=mode;}
-			 else {printf("invalid mode");state_mode=0;}
-			 break;
-	 case 1: if(prev_mode==mode)
-	 		{panic_flag=0; 
-	         switch(mode)
-	 			{case 2: manual_mode_sqrt();
-						break;
-		  		case 3:  callibration_mode();
-				  			state_mode=0;calib_flag=1;
-						break;
-				case 4:  
-						if(calib_flag==1)
-						yaw_control();
-						else state_mode=0;
-						break;
-				case 5: 
-						if(calib_flag==1)
-						full_control();
-						else state_mode=0;
-						break;
-				case 6://raw_mode();break;
-				case 7://height control
-				case 8://wireless
-				default: state_mode=0;
-				}
-			 }
-			 else 
-			 {state_mode=2;
-			 prev_mode=mode;
-			 }
-			 break;
-	 case 2: panicmode();
-	 		 state_mode=0;
-			if(mode==1)
-			panic_flag=1;
-			 break;
-	 default: state_mode=0;
-
-	}
-
-	if (check_sensor_int_flag()) 
-		{
-			get_dmp_data();//bat_chk();
-			run_filters_and_control();
-		}
-//stop_controltime = get_time_us() - start_controltime ;
-	
- //start_senstime = get_time_us();
+	//start_senstime = get_time_us();
 	  if (check_timer_flag()) 
 		{
 			if (counter++%20 == 0) nrf_gpio_pin_toggle(BLUE);
 
 			adc_request_sample();
-                  	
-			//read_baro(); 
-			/*printf("%10ld | ", get_time_us());
-			printf("%3d %3d %3d %3d | ",ae[0],ae[1],ae[2],ae[3]);
-			printf("%6d %6d %6d | ", phi, theta, psi);
-			printf("%6d %6d %6d | ", sp, sq, sr);
-			printf("%4d | %4ld | %6ld \n", bat_volt, temperature, pressure);*/
-			//printf("%6d %6d %6d |\n ", sp, sq, sr);
-			//printf("%10ld | ", get_time_us());
+            read_baro(); 
 			clear_timer_flag();
 		}
 	// stop_senstime = get_time_us() - start_senstime ;	
-	
+	/*Mode switching*/
+			switch(state_mode)
+			{
+				/*Intial state - safe mode*/
+				case 0: 
+					safe_mode(); 
+					//if(roll!=0||pitch!=0||yaw!=0||lift!=0)
+					//state_mode=0;
+					// else if (bat_volt<1100)
+					//state_mode=0;
+					if(mode==0||((mode==1)&&(panic_flag==1))||(calib_flag==1 && mode==3))
+					state_mode=0;
+					else if(mode==1&&panic_flag==0)
+					demo_done=true;
+					else if(mode>=2&&mode<=6)
+					{state_mode=1;prev_mode=mode;}
+					else state_mode=0;
+					break;
+
+				/*Mode Switching*/
+				case 1: if(prev_mode==mode)
+						{panic_flag=0; 
+							switch(mode)
+								{
+									case 2: manual_mode_sqrt();
+									break;
+									case 3: callibration_mode();
+											state_mode=0;calib_flag=1;
+											break;
+									case 4:  
+											if(calib_flag==1)
+											yaw_control();
+											else state_mode=0;
+											break;
+									case 5: 
+											if(calib_flag==1)
+											full_control();
+											else state_mode=0;
+											break;
+									case 6:if(calib_flag==1)
+											{	
+											kalmanFilter();
+											butterWorth_2ndOrder();
+											raw_mode();
+											}
+											else state_mode=0;
+											break;
+									default: state_mode=0;
+								}
+					}
+					else 
+					{state_mode=2;
+					prev_mode=mode;
+					}
+					break;
+
+				/*Panic Mode*/
+				case 2: panicmode();
+						state_mode=0;
+						if(mode==1)
+						panic_flag=1;
+						break;
+				default: state_mode=0;
+
+			}
+	//start_controltime = get_time_us();
+	if (check_sensor_int_flag()) 
+		{
+			get_dmp_data();
+			//bat_chk();	
+			run_filters_and_control();
+		}
+	//stop_controltime = get_time_us() - start_controltime ;
 
 
+	/*Telemetry and Data logging every 300ms*/
 	uint32_t current = get_time_us();
  	uint32_t difference=current-previous;
 
 	if ( difference > trigger )
     { previous=current;
 
+	/*Data logging*/
 	if(flag_logging==1)
 		{	
 			//start_logtime = get_time_us();
@@ -154,27 +153,23 @@ butterWorth_2ndOrder();
 			//stop_logtime = get_time_us() - start_logtime ;
 			//printf("%10ld|",stop_logtime);
 		}
+	/*Telemetry*/
 		//start_logtime = get_time_us();
 		rs232_write();	
 		//stop_logtime = get_time_us() - start_logtime ;
-			//printf("%10ld|",stop_logtime);
-	//full_loop = get_time_us() - start_fullloop;
-	//printf("%d|%10ld|%10ld|%10ld|%10ld|%d|%d|%d|%d|lift=%d|roll=%d|pitch=%d|yaw=%d|\n",rec_counter,full_loop,stop_rstime,stop_controltime,stop_senstime,ae[0],ae[1],ae[2],ae[3],lift,roll,pitch,yaw);
-    //printf("lift_key=%d\n",lift_key);
-	//printf("%6d %6d %6d | \n", sp, sq, sr);
-	//printf("cal=%6d |%6d| %6d |%6d| %6d| %6d|\n ",sp_c,sq_c,sr_c,sax_c,say_c,saz_c);
-	//printf("packedrop=%d",packet_drop);
-	//printf("kal=%d|%d|%d|%d|\n",p_kalman,sp,q_kalman,sq);
-	//printf("yaw=%d|%d\n",r_bf,sr);
+		//printf("%10ld|",stop_logtime);
+
+		//printf("%d|%10ld|%10ld|%10ld|%10ld|%d|%d|%d|%d|lift=%d|roll=%d|pitch=%d|yaw=%d|\n",rec_counter,full_loop,stop_rstime,stop_controltime,stop_senstime,ae[0],ae[1],ae[2],ae[3],lift,roll,pitch,yaw);
+		//printf("tele:%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|\n",mode,ae[0],ae[1],ae[2],ae[3],bat_volt,phi,theta,psi,sp,sq,sr,sax,say,saz,lift,roll,pitch,yaw,p_yaw,P1,P2);
+
 	}
+	//full_loop = get_time_us() - start_fullloop;
 
-
-		
+		/*Exit control loop if communication is disrupted*/
 		if(packet_drop>10000||rec_counter>1000) 
-		{demo_done=true;
-		 printf("packet dropped=%d,reccount=%d",packet_drop,rec_counter);}	
+			demo_done=true;	 	
 
-	}	
+	}
 	
 	printf("\n\t Goodbye \n\n");
 	nrf_delay_ms(100);

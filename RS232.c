@@ -82,7 +82,7 @@ void rs232_read()
 	int8_t data = 0;
 	int i=0,j = 0;	
 
-		/* receive data byte from PC */
+		/* receive one data byte from PC */
 		if(rx_queue.count>0)
 			{		
 			data = dequeue(&rx_queue); 
@@ -118,7 +118,7 @@ void rs232_read()
 			/*State 2 - Receive the second byte of CRC and store the payload if CRC matches*/
 			case 2:
 				check2 = data;
-				if(check_crc(check1,check2,frame))//check CRC <TO DO>
+				if(check_crc(check1,check2,frame))
 				{
 					state = 0;packet_drop=0;
 					store_data(frame);
@@ -256,7 +256,7 @@ void store_data(int8_t p[DataSize])
 
 
 /*----------------------------------------------------------------------------------------------------------
- * Function rs232_write() - send the necessary data vis UART to PC for telemetry
+ * Function rs232_write() - send the necessary data via UART to PC for telemetry
  * Return value - void
  * Arguments : Null
  *----------------------------------------------------------------------------------------------------------
@@ -264,12 +264,9 @@ void store_data(int8_t p[DataSize])
 void rs232_write()
 {
 	int8_t tx_buff[43];					
-	int16_t bat_volt_temp = bat_volt - 32767;
-	
 	int16_t crc;
 	
 /*transmit frame telemetry - ae[0] | ae[1] | ae[2] | ae[3] | bat_volt | phi | theta | psi | sp | sq | sr | sax | say | saz | lift | roll | pitch | yaw | P | P1 | p2*/
-	
 	tx_buff[0] 		= 0xFA;
 	tx_buff[1] 		= mode;
 	tx_buff[2] 		= (int8_t)ae[0];
@@ -280,8 +277,8 @@ void rs232_write()
 	tx_buff[7] 		= (int8_t)(ae[2]>>8);
 	tx_buff[8] 		= (int8_t)ae[3];
 	tx_buff[9] 		= (int8_t)(ae[3]>>8);
-	tx_buff[10]		= (int8_t)bat_volt_temp;
-	tx_buff[11]		 = (int8_t)(bat_volt_temp>>8);
+	tx_buff[10]		= (int8_t)bat_volt;
+	tx_buff[11]		 = (int8_t)(bat_volt>>8);
 	tx_buff[12]		 = (int8_t)phi;
 	tx_buff[13]		 = (int8_t)(phi>>8);
 	tx_buff[14]		 = (int8_t)theta;

@@ -16,6 +16,11 @@
 #include <inttypes.h>
 #include <stdio.h>
 #include <time.h>
+#include <sys/time.h>
+#include <sys/types.h>
+#include <errno.h>
+#include <string.h>
+#include <sys/stat.h>
 #include "nrf_gpio.h"
 #include "nrf_delay.h"
 #include "inv_mpu.h"

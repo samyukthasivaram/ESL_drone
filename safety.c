@@ -4,8 +4,8 @@
  * Developed and tested by Samyuktha Sivaram
  * Embedded Software Lab
  * Date - 16.06.2018
- */----------------------------------------------------------------------------------------------------------
-
+ ----------------------------------------------------------------------------------------------------------
+*/
 #include "in4073.h"
 
 /*----------------------------------------------------------------------------------------------------------
@@ -22,7 +22,7 @@ uint16_t panic_speed = 200;
 int  trigger_p = 1000000;
 uint32_t difference_p;
 
-if(lift>250)
+if(lift>277)
 	{
 		while(panic_speed>0)
 		{
@@ -64,7 +64,8 @@ void bat_chk() //if low battery then go to panic mode
 
 if(bat_volt<1100)
    {printf("Battery Low");
-	 panicmode();}
+	 panicmode();
+	 demo_done=true;}
 
 }
 
@@ -109,15 +110,15 @@ void callibration_mode()
 		
 	}
 
-	 phi_c=(sum_phi>>num);
-	 theta_c=(sum_theta>>num);
-	 psi_c=(sum_psi>>num);	
-	 sax_c = sum_accel[0] >> num;
-	 say_c = sum_accel[1] >> num;
-	 saz_c = sum_accel[2] >>num;
-	 sp_c = sum_gyro[0] >> num;
-	 sq_c = sum_gyro[1] >> num;
-	 sr_c = sum_gyro[2] >> num;
+	 phi_c=(sum_phi>>4);
+	 theta_c=(sum_theta>>4);
+	 psi_c=(sum_psi>>4);	
+	 sax_c = sum_accel[0] >> 4;
+	 say_c = sum_accel[1] >> 4;
+	 saz_c = sum_accel[2] >>4;
+	 sp_c = sum_gyro[0] >> 4;
+	 sq_c = sum_gyro[1] >> 4;
+	 sr_c = sum_gyro[2] >> 4;
     printf("%d|%d|%d|%d|%d|%d|",phi_c,theta_c,psi_c,sp_c,sq_c,sr_c);
 
 }

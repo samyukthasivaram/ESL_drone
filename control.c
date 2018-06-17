@@ -45,8 +45,7 @@ int16_t squareroot(int16_t value)
                 Root += Bit;
                 value -= Trial;
             }
-        }
-       // printf("%d",Root);		 
+        }		 
 		return Root;
 }
 
@@ -92,7 +91,7 @@ int16_t yaw_roll=0,yaw_pitch=0,yaw_yaw=0,yaw_lift=0,yaw_sr,error = 0;
 	error = yaw - yaw_sr;
 	yaw_yaw = p_yaw * error;
 
-/*Calculate motor RMP using updated yaw */
+/*Calculate motor RPM using updated yaw */
 motor_control(yaw_lift,yaw_roll,yaw_pitch,yaw_yaw);
 
 }
@@ -120,11 +119,11 @@ void full_control()
 	error_yaw = yaw - full_sr;
 	full_yaw = p_yaw * error_yaw;
 	
-	full_roll = (roll - ((phi>>6) - phi_c))*(P1>>2) - full_sp*P2;
+	full_roll = (roll - ((phi>>6) - phi_c))*(P1>>2) - (full_sp)*(P2>>2);
 	
-	full_pitch = (pitch - ((theta>>6) - theta_c) )*(P1>>2) + (full_sq)*P2;
+	full_pitch = (pitch - ((theta>>6) - theta_c) )*(P1>>2) + (full_sq)*(P2>>2);
 
-/*Calculate motor RMP using updated roll, pitch and yaw */
+/*Calculate motor RPM using updated roll, pitch and yaw */
 motor_control(full_lift,full_roll,full_pitch,full_yaw);
 }
  
@@ -133,6 +132,7 @@ motor_control(full_lift,full_roll,full_pitch,full_yaw);
  *   						Pass the computed value of yaw. roll, pitch to motor_control to calculate motor speed
  * Return value - void
  * Arguments : null
+ * This function has not been tested
  *----------------------------------------------------------------------------------------------------------
  */
  
@@ -207,6 +207,6 @@ void motor_control(int16_t t_lift, int16_t t_roll,int16_t t_pitch, int16_t t_yaw
  if (ae[3] < 200) ae[3] = 200; 
  if (ae[3] > 600) ae[3] = 600;
     }
-	
+run_filters_and_control();
 	
 }
