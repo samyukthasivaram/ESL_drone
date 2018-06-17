@@ -31,25 +31,31 @@
 #define INT_PIN		5
 #define Motor_const 13
 
+//global variables
 bool demo_done;
-int packet_drop,rec_counter;
+int packet_drop,rec_counter;  /*packet_drop - count the number of consecutive packets dropped, rec_counter - count the number of consecutive incorrect crc */
+uint8_t p_yaw,P1,P2;
+int16_t sax_c, say_c, saz_c;
+int16_t sp_c, sq_c, sr_c;
+int16_t phi_c,theta_c,psi_c; 
+int16_t roll,pitch,yaw,lift,lift_key,roll_key,pitch_key,yaw_key;
+int16_t motor[4],ae[4];
+int8_t keyboard,mode,prev_mode;
+
+
+// Control and modes
 void manual_mode_sqrt();
+void motor_control(int16_t t_lift, int16_t t_roll,int16_t t_pitch, int16_t t_yaw);
+void full_control();
+void run_filters_and_control();
+void yaw_control();
+void raw_mode();
+
+//safety 
+void callibration_mode();
 void safe_mode();
 void panicmode();
-void motor_control(int16_t t_lift, int16_t t_roll,int16_t t_pitch, int16_t t_yaw);
-void callibration_mode();
-void full_control();
-uint8_t p_yaw,P1,P2;
-	int16_t sax_c;
-	int16_t say_c;
-	int16_t saz_c;
-	int16_t sp_c;
-	int16_t sq_c;
-	int16_t sr_c;
-	int16_t phi_c,theta_c,psi_c; 
-int16_t roll,pitch,yaw,lift,lift_key,roll_key,pitch_key,yaw_key;
-int16_t rollup,pitchup,yawup,liftup,rolldown,pitchdown,yawdown,liftdown;
-
+void bat_chk();
 
 //filters
 int mul(float x, float y);
@@ -58,13 +64,6 @@ int	float2fix(double x);
 void butterWorth_2ndOrder();
 void butterWorth_1stOrder();
 void kalmanFilter();
-int8_t keyboard,mode,prev_mode;
-//int8_t p_yaw;
-// Control
-int16_t motor[4],ae[4];
-void run_filters_and_control();
-void yaw_control();
-void raw_mode();
 
 //data logging
 int flag_logging;
