@@ -1,35 +1,29 @@
-#include<stdio.h>
-#include<math.h>
-#include<stdint.h>
+/*----------------------------------------------------------------------------------------------------------
+ *This file ontains functions that enable us to write and read from flash
+ *
+ * Developed and tested by Samyuktha Sivaram
+ * Embedded Software Lab
+ * Date - 16.06.2018
+ ----------------------------------------------------------------------------------------------------------
+*/
 #include"in4073.h"
 
+#define NUM_DATA   51
+#define MAX_ADDR   0x1FFF
+#define MIN_ADDR   0x0000
+
+static uint32_t addr=MIN_ADDR;
 
 
-
-#define NUM_DATA 40
-#define MAX_ADDR   0xFFFFFFFF
-#define MIN_ADDR   0x00000000
-
-struct read_data
-{
-	float time;
-	int mode;
-	int incoming;
-	float phi, theta, psi;
-	float sax, say, saz, sp, sq, sr;
-	float pressure, temperature;
-	float ae[4];
-
-};
-
-
-
-
-
-void update_data(uint8_t *data_buffer)
+/*----------------------------------------------------------------------------------------------------------
+ * Function update_data() - updata the data that is to be stored in the flash in an array
+ * Return value - void
+ * Arguments : null
+ *----------------------------------------------------------------------------------------------------------
+ */
+ 
+void update_data()
 {   
-	
-   //flash_chip_erase()
 	uint32_t system_time;
 	system_time = get_time_us();
 	//system time,4 bytes
@@ -40,7 +34,7 @@ void update_data(uint8_t *data_buffer)
 	//system_mode
 	data_buffer[4] = mode & 0xFF;
 	//incoming joystick/keyboard
-	data_buffer[5] =joystick //?????? & 0xFF;
+	data_buffer[5] =keyboard;
 	//actuator data phi,theta,psi
 	data_buffer[6] = (phi >> 8) & 0xFF;
 	data_buffer[7] = phi & 0xFF;
@@ -66,7 +60,6 @@ void update_data(uint8_t *data_buffer)
 	data_buffer[25] = (pressure >> 16) & 0xFF;
 	data_buffer[26] = (pressure >> 8) & 0xFF;
 	data_buffer[27] = pressure & 0xFF;
-
 	data_buffer[28] = (temperature >> 24) & 0xFF;
 	data_buffer[29] = (temperature>> 16) & 0xFF;
 	data_buffer[30] = (temperature >> 8) & 0xFF;
@@ -80,42 +73,50 @@ void update_data(uint8_t *data_buffer)
 	data_buffer[37] = ae[2] & 0xFF;
 	data_buffer[38] = (ae[3] >> 8) & 0xFF;
 	data_buffer[39] = ae[3] & 0xFF;
-
-
-	/*intermediate data from the sensor signal processing chain?????????????*/
-	printf("update data successful\n");
+	data_buffer[40] = (lift >> 8) & 0xFF;
+	data_buffer[41] = lift & 0xFF;
+	data_buffer[42] = (roll >> 8) & 0xFF;
+	data_buffer[43] = roll & 0xFF;
+	data_buffer[44] = (pitch >> 8) & 0xFF;
+	data_buffer[45] = pitch & 0xFF;
+	data_buffer[46] = (yaw >> 8) & 0xFF;
+	data_buffer[47] = yaw & 0xFF;
+	data_buffer[48] = p_yaw;
+	data_buffer[49] = P1;
+	data_buffer[50] = P2;
+	
 }
 
-void save_data_in_flash(uint8_t *data_buffer) 
+/*----------------------------------------------------------------------------------------------------------
+ * Function save_data_in_flash() - write the data in the flash
+ * Return value - void
+ * Arguments : null
+ *----------------------------------------------------------------------------------------------------------
+ */
+ 
+void save_data_in_flash() 
 { 
-	static uint32_t addr;
-	//update_data(data_buffer);
-		if (addr == MAX_ADDR)
-		{
-			printf("The flash is full and can not write data in it.\n");
-			if (flash_chip_erase()) 
-			{
-				addr = MIN_ADDR;
-			}
-			else 
-			{
-				printf("flash_chip_erase:error");
-			}
-		}
+
+	update_data();
 	
-	if (addr += NUM_DATA > MAX_ADDR)
+	/* if the flash memory is full clear flash and move addr to MIN_ADDR */
+	if ((addr + NUM_DATA) > MAX_ADDR)
 	{
-		printf("can not write all the data in flash");
+		flag_logging=0;
+		printf("\ncan not write all the data in flash");
 		if (flash_chip_erase())
 		{
 			addr = MIN_ADDR;
 		}
 		else
 		{
-			printf("flash_chip_erase:error");
+			printf("\nflash_chip_erase:error");
 		}
 
-	}else
+	}
+	
+	/*write data to flash and move addr by NUM_DATA bytes */
+	else
 	{
 		if(flash_write_bytes(addr, data_buffer, NUM_DATA))
 		{
@@ -123,89 +124,75 @@ void save_data_in_flash(uint8_t *data_buffer)
 		}
 		else 
 		{
-			printf("Flash write fail.");
+			printf("\nFlash write fail.");
 		}
 	}
 }
 
+/*----------------------------------------------------------------------------------------------------------
+ * Function read_from_flash() - read the data from flash and send it to PC for logging via UART
+ * Return value - void
+ * Arguments : null
+ *----------------------------------------------------------------------------------------------------------
+ */
+ 
+void read_from_flash()
+{	
+	static uint32_t lower_address = MIN_ADDR;
+	int start_byte=0xFB;
+	uint8_t read_flash[NUM_DATA];
+	uint8_t *read_buffer;int8_t read_flashnew[NUM_DATA+3];
+	int16_t crc;
+	int  trigger_p = 100000;
+	uint32_t difference_p;
+	read_buffer=read_flash;
 
-void read_from_flash(uint8_t *read_buffer)//read and save 
-{
-	static uint32_t addr;
-	uint32_t r_time,r_pressure,r_temperature;
-	uint8_t r_mode, r_incoming;//incoming: joystick or keyboard
-	uint16_t r_phi, r_theta, r_psi, r_sax, r_say, r_saz, r_sp, r_sq, r_sr;
-	uint16_t r_ae[4];
-	struct read_data r;
-	if (addr += NUM_DATA > MAX_ADDR) 
+	while ((lower_address + NUM_DATA) <= addr) 
 	{
-		printf("the address is our of bounds ");
-		addr = 0x00000000;
-	}
-	else 
-	{
-		if (!flash_read_bytes(addr, read_buffer, NUM_DATA) )
+		if (!flash_read_bytes(lower_address, read_buffer, NUM_DATA) )
 		{
 			printf("read flash failed");
 		}
 		else 
-		{
-			r.time = read_buffer[0] << 24 + read_buffer[1] << 16 + read_buffer[2] << 8 + read_buffer[3];
-			r.mode = read_buffer[4];
-			r.incoming = read_buffer[5];
-			r.phi = read_buffer[6] << 8 + read_buffer[7];
-			r.theta = read_buffer[8] << 8 + read_buffer[9];
-			r.psi = read_buffer[10] << 8 + read_buffer[11];
-			r.sax = read_buffer[12] << 8 + read_buffer[13];
-			r.say = read_buffer[14] << 8 + read_buffer[15];
-			r.saz = read_buffer[16] << 8 + read_buffer[17];
-			r.sp= read_buffer[18]<< 8 + read_buffer[19];
-			r.sq = read_buffer[20] << 8 + read_buffer[21];
-			r.sr = read_buffer[22] << 8 + read_buffer[23];
-			r.pressure = read_buffer[24] << 24 + read_buffer[25] << 16 + read_buffer[26] << 8 + read_buffer[27];
-			r.temperature = read_buffer[28] << 24 + read_buffer[29] << 16 + read_buffer[30] << 8 + read_buffer[31];
-			r.ae[0] = read_buffer[32] << 8 + read_buffer[33];
-			r.ae[1] = read_buffer[34] << 8 + read_buffer[35];
-			r.ae[2] = read_buffer[36] << 8 + read_buffer[37];
-			r.ae[3] = read_buffer[38] << 8 + read_buffer[39];
-		
-			FILE *fp;
-			fp = fopen("data.txt", "w+");
-			if (!fp) 
-			{
-				printf("creat file error");
-			}
-			else 
-			{
-				fwrite(&r, sizeof(r), 1, fp);
-				fclose(fp);
+		{	read_flashnew[0]=start_byte;
+			for(int i=NUM_DATA-1; i>=0; i--)
+			{read_flashnew[i+1]=(int8_t)read_flash[i];
 			}
 			
+			crc=calc_crc(read_flashnew,NUM_DATA+1,1);
+				
+			read_flashnew[52] = (int8_t)(crc);
+			read_flashnew[53] = (int8_t)(crc>>8);
 		
-		
+			
+
+		uint32_t before_p = get_time_us();
+			do {
+			  	difference_p = get_time_us() - before_p;		
+				} while ( difference_p < trigger_p );
+
+
+		for(int i=0; i<NUM_DATA+3; i++)
+		{			
+					uart_put(read_flashnew[i]);
 		}
-		addr += NUM_DATA;
-		printf("read data successful");
-		//
+					
+		}
+		lower_address += NUM_DATA;
 	}
-
-}
-
-
-
-
-
-
-
-bool flash_clear() 
-{
+	/* clear flash after reading */
 	if (flash_chip_erase())
-	{
-		printf("The flash is cleared.");
-			return true;
-	}
-	else 
-	{
-		return false;
-	}
+		{
+			addr = MIN_ADDR;
+		}
+		else
+		{
+			printf("\nflash_chip_erase:error");
+		}
+
+	lower_address = MIN_ADDR;
+
 }
+
+
+ 
