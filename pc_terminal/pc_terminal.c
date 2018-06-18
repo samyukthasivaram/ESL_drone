@@ -465,10 +465,10 @@ int main(int argc, char **argv)
 		}
 	
 
-	lift = 1000;
+	/*lift = 1000;
 	roll = 1000;
 	pitch = 1000;
-	yaw = 1000;
+	yaw = 1000;*/
 		
 	for (;;)
 	{	
