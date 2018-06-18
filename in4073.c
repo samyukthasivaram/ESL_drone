@@ -69,11 +69,11 @@ int main(void)
 				/*Intial state - safe mode*/
 				case 0: 
 					safe_mode(); 
-					//if(roll!=0||pitch!=0||yaw!=0||lift!=0)
-					//state_mode=0;
-					// else if (bat_volt<1100)
-					//state_mode=0;
-					if(mode==0||((mode==1)&&(panic_flag==1))||(calib_flag==1 && mode==3))
+					if(roll!=0||pitch!=0||yaw!=0||lift!=0)
+					state_mode=0;
+					else if (bat_volt<1100)
+					state_mode=0;
+					else if(mode==0||((mode==1)&&(panic_flag==1))||(calib_flag==1 && mode==3))
 					state_mode=0;
 					else if(mode==1&&panic_flag==0)
 					demo_done=true;
