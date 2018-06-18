@@ -132,7 +132,7 @@ int main(void)
 	if (check_sensor_int_flag()) 
 		{
 			get_dmp_data();
-			//bat_chk();	
+			bat_chk();	
 			run_filters_and_control();
 		}
 	//stop_controltime = get_time_us() - start_controltime ;
