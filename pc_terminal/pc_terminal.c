@@ -224,8 +224,8 @@ void log_data(int read_buffer[50])
 	
 	
 	
-			printf("tele:%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|\n",r_mode,r_ae[0],r_ae[1],r_ae[2],r_ae[3],r_bat,r_phi,r_theta,r_psi,r_sp,r_sq,r_sr,r_sax,r_say,r_saz,r_lift,r_roll,r_pitch,r_yaw,r_p,r_p1,r_p2);
-	ftele = fopen("data_print.txt", "a");
+	printf("tele:%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|\n",r_mode,r_ae[0],r_ae[1],r_ae[2],r_ae[3],r_bat,r_phi,r_theta,r_psi,r_sp,r_sq,r_sr,r_sax,r_say,r_saz,r_lift,r_roll,r_pitch,r_yaw,r_p,r_p1,r_p2);
+	/*ftele = fopen("data_print.txt", "a");
 	if (!ftele) 
 		{
 		printf("creat file error");
@@ -236,7 +236,7 @@ void log_data(int read_buffer[50])
 		fprintf(ftele, "%s","\n");
 		fclose(ftele);
 		}
-		
+		*/
 		
 	}	
 
@@ -447,12 +447,12 @@ int main(int argc, char **argv)
     
 /*Open file for storing joystick values */
 
-	/*	int fd;
+		int fd;
         #define JS_DEV	"/dev/input/js0"
 	if ((fd = open(JS_DEV, O_RDONLY)) < 0) {
 		perror("joystick error");
 		exit(1);
-	}*/
+	}
 
 	term_initio();
 	rs232_open();
@@ -478,7 +478,7 @@ int main(int argc, char **argv)
 	uint8_t c = 0;
 	
 	/* input from joystick */
-/*
+
 	// non-blocking mode
 	 
 	fcntl(fd, F_SETFL, O_NONBLOCK);
@@ -516,7 +516,7 @@ int main(int argc, char **argv)
 		yaw = axis[2];
 		lift = axis[3];
 		}
-*/
+
          /*clock to transmit frame every 14ms*/
 		clock_t current = clock();
  		clock_t difference=current-previous;

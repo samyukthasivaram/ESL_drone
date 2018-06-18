@@ -103,7 +103,7 @@ void save_data_in_flash()
 	if ((addr + NUM_DATA) > MAX_ADDR)
 	{
 		flag_logging=0;
-		printf("\ncan not write all the data in flash");
+		/*printf("\ncan not write all the data in flash");
 		if (flash_chip_erase())
 		{
 			addr = MIN_ADDR;
@@ -111,7 +111,7 @@ void save_data_in_flash()
 		else
 		{
 			printf("\nflash_chip_erase:error");
-		}
+		}*/
 
 	}
 	
@@ -143,8 +143,6 @@ void read_from_flash()
 	uint8_t read_flash[NUM_DATA];
 	uint8_t *read_buffer;int8_t read_flashnew[NUM_DATA+3];
 	int16_t crc;
-	int  trigger_p = 100000;
-	uint32_t difference_p;
 	read_buffer=read_flash;
 
 	while ((lower_address + NUM_DATA) <= addr) 
@@ -163,14 +161,6 @@ void read_from_flash()
 				
 			read_flashnew[52] = (int8_t)(crc);
 			read_flashnew[53] = (int8_t)(crc>>8);
-		
-			
-
-		uint32_t before_p = get_time_us();
-			do {
-			  	difference_p = get_time_us() - before_p;		
-				} while ( difference_p < trigger_p );
-
 
 		for(int i=0; i<NUM_DATA+3; i++)
 		{			
